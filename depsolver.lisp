@@ -1,5 +1,5 @@
 (defpackage depsolver
-  (:use :cl :alexandria)
+  (:use :cl :alexandria :pergamum)
   (:export
    depobj depend satisfied-p map-reverse-dependencies solve))
 
@@ -25,10 +25,6 @@
 (defun color-satisfied-p (o color)
   (declare (type depobj o))
   (zerop (hash-table-count (%depobj-dep# o))))
-
-(defun hash-table-next (h)
-  (with-hash-table-iterator (f h)
-    (f)))
 
 (defun next-dep (o)
   "Pick the next depended-upon object off the list."

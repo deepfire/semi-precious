@@ -4,7 +4,7 @@
 (in-package :semi-precious.system)
 
 (defsystem :semi-precious
-  :depends-on (:alexandria)
+  :depends-on (:alexandria :pergamum)
   :components
   ((:file "depsolver")
    (:file "discrimination")
