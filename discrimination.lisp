@@ -1,9 +1,9 @@
 (defpackage discrimination
   (:use :cl :alexandria)
   (:export
-   discriminator binary-discriminator set-discriminator discriminator-sub discriminator-subs
-   discriminate
-   discriminator-by-id-path discriminator-by-value-path))
+   #:discriminator #:binary-discriminator #:set-discriminator #:discriminator-sub #:discriminator-subs
+   #:discrimination-error #:discrimination-value-unbound #:discriminate
+   #:discriminator-by-id-path #:discriminator-by-value-path))
 
 (in-package :discrimination)
 
@@ -13,8 +13,17 @@
 
 (defmethod print-object ((d discriminator) stream)
   (labels ((slot (id) (if (slot-boundp d id) (slot-value d id) :unbound-slot)))
-    (format stream "#<~A:~A fn: ~S>"
+    (format stream "~@<#<~;~A:~A fn: ~S~;>~:@>"
 	    (type-of d) (slot 'id) (slot 'fn))))
+
+(define-condition discrimination-error (error)
+  ((discriminator :accessor condition-discriminator :initarg :discriminator)))
+
+(define-condition discrimination-value-unbound (discrimination-error)
+  ((value :accessor condition-value :initarg :value))
+  (:report (lambda (condition stream)
+             (format stream "~@<discriminator ~S has no binding for value ~S~:@>"
+                     (condition-discriminator condition) (condition-value condition)))))
 
 (defclass binary-discriminator (discriminator)
   ((fn :type (function (*) boolean))
@@ -47,10 +56,12 @@
 
 (defun discriminate (d &rest params)
   (declare (type discriminator d))
-  (let ((sub (discriminator-sub d (apply (discriminator-fn d) params))))
-    (if (typep sub 'discriminator)
-	(discriminate sub)
-	sub)))
+  (let* ((value (apply (discriminator-fn d) params))
+         (sub (discriminator-sub d value)))
+    (typecase sub
+      (discriminator (discriminate sub))
+      (null (error 'discrimination-value-unbound :discriminator d :value value))
+      (t sub))))
 
 (defun discriminator-by-id-path (path at)
   (declare (type discriminator at))
