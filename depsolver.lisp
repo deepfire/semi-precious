@@ -1,7 +1,7 @@
 (defpackage depsolver
   (:use :cl :alexandria :pergamum)
   (:export
-   depobj depend satisfied-p map-reverse-dependencies solve))
+   depobj depend undepend satisfied-p map-reverse-dependencies solve))
 
 (in-package :depsolver)
 
@@ -17,6 +17,11 @@
   (declare (type depobj x y))
   (setf (gethash (depobj-id y) (%depobj-dep# x)) (cons y color)
 	(gethash (depobj-id x) (%depobj-rdep# y)) x))
+
+(defun undepend (x y)
+  "Make X no longer depend on Y."
+  (remhash (depobj-id y) (%depobj-dep# x))
+  (remhash (depobj-id x) (%depobj-rdep# y)))
 
 (defun satisfied-p (o)
   (declare (type depobj o))
