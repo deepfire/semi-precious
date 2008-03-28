@@ -9,4 +9,5 @@
   ((:file "depsolver")
    (:file "discrimination")
    (:file "octree-1d")
-   (:file "state")))
+   (:file "state")
+   (:file "circular")))
