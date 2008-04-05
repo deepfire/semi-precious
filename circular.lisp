@@ -1,16 +1,14 @@
 (defpackage circular-buffer
   (:nicknames :circbuf)
-  (:use :common-lisp :iterate)
+  (:use :common-lisp :iterate :alexandria)
   (:export
    #:circular-buffer
-   #:circular-buffer-elt
-   #:circular-buffer-shrink
-   #:circular-buffer-extend
+   #:circular-buffer-elt #:circular-buffer-elt-tailwards
+   #:circular-buffer-shrink #:circular-buffer-extend
    #:circular-buffer-push
-   #:circular-buffer-push
-   #:circular-buffer-size
-   #:circular-buffer-limit
-   #:circular-buffer-sublist-headwards))
+   #:circular-buffer-size #:circular-buffer-limit
+   #:circular-buffer-sublist-headwards
+   #:do-circular-buffer))
 
 (in-package :circular-buffer)
 
@@ -46,40 +44,46 @@
   (mod (1+ x) (circular-buffer-limit o)))
 
 (defun pointer-cap-by-size (o n)
-  (min (1+ n) (circular-buffer-size o)))
+  (min n (circular-buffer-size o)))
 
-(defun pointer-reencircle (o n)
+(defun headwards-pointer (o n)
+  (mod (+ (tail o) n) (circular-buffer-limit o)))
+
+(defun tailwards-pointer (o n)
   (mod (- (head o) n (- (circular-buffer-limit o))) (circular-buffer-limit o)))
 
 (defun circular-buffer-elt (i o)
-  (aref (store o) (pointer-reencircle o (pointer-cap-by-size o i))))
+  (aref (store o) (headwards-pointer o (pointer-cap-by-size o i))))
+
+(defun circular-buffer-elt-tailwards (i o)
+  (aref (store o) (tailwards-pointer o (pointer-cap-by-size o (1+ i)))))
 
 (defun (setf circular-buffer-elt) (val i o)
-  (setf (aref (store o) (pointer-reencircle o (pointer-cap-by-size o i))) val))
+  (setf (aref (store o) (headwards-pointer o (pointer-cap-by-size o i))) val))
+
+(defun (setf circular-buffer-elt-tailwards) (val i o)
+  (setf (aref (store o) (tailwards-pointer o (pointer-cap-by-size o (1+ i)))) val))
 
 (defun circular-buffer-shrink-store (o physaddr)
-  (iter (for i from physaddr to (1- (circular-buffer-limit o)))
-        (setf (aref (store o) i) (aref (store o) (1+ i))))
+  (replace (store o) (store o) :start1 physaddr :start2 (1+ physaddr))
   (incf (charge o)))
 
 (defun circular-buffer-extend-store (o physaddr)
-  (let ((old-dimension (circular-buffer-limit o)))
-    (when (zerop (charge o))
-      (setf (store o) (adjust-array (store o) (+ (array-dimension (store o) 0) (granularity o))))
-      (incf (charge o) (granularity o)))
-    (decf (charge o))
-    (iter (for i from (1- old-dimension) downto physaddr)
-          (setf (aref (store o) (1+ i)) (aref (store o) i)))))
+  (when (zerop (charge o))
+    (setf (store o) (adjust-array (store o) (+ (array-dimension (store o) 0) (granularity o))))
+    (incf (charge o) (granularity o)))
+  (decf (charge o))
+  (replace (store o) (store o) :start1 (1+ physaddr) :start2 physaddr))
 
 (defun circular-buffer-shrink (o n)
   (when (plusp (circular-buffer-size o))
-    (let ((physaddr (pointer-reencircle o (pointer-cap-by-size o n))))
+    (let ((physaddr (tailwards-pointer o (pointer-cap-by-size o (1+ n)))))
       (circular-buffer-shrink-store o physaddr)
       (unless (< (head o) physaddr)
         (decf (head o))))))
 
 (defun circular-buffer-extend (o n)
-  (let ((physaddr (pointer-reencircle o (pointer-cap-by-size o n))))
+  (let ((physaddr (tailwards-pointer o (pointer-cap-by-size o (1+ n)))))
     (circular-buffer-extend-store o physaddr)
     (unless (< (head o) physaddr)
       (incf (head o)))))
@@ -94,9 +98,17 @@
 
 (defun circular-buffer-sublist-headwards (o from &optional (count (1+ from)))
   (declare (type (integer 0) count from))
-  (let* ((from (pointer-cap-by-size o from))
-         (start (pointer-reencircle o from))
+  (let* ((from (pointer-cap-by-size o (1+ from)))
+         (start (tailwards-pointer o from))
          (count (min count from)))         ;; cap the desire by start
     (iter (for i first start then (circular-buffer-next i o))
           (for j from 0 below count)
           (collect (aref (store o) i)))))
+
+(defmacro do-circular-buffer ((var o &key start) &body body)
+  (with-gensyms (i)
+    (once-only (o)
+      `(iter (for ,i first ,(if start `(headwards-pointer ,o ,start) `(tail ,o)) then (circular-buffer-next ,i ,o))
+             (for ,var = (circular-buffer-elt ,i ,o))
+             (until (= ,i (head ,o)))
+             ,@body))))
