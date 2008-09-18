@@ -5,7 +5,8 @@
    #:tree #:make-tree #:invalid-tree-address
    #:insert
    #:resolve #:resolve-next
-   #:do-tree-values))
+   #:do-tree-values
+   #:tree-list))
 
 (in-package :oct-1d)
 
@@ -187,3 +188,8 @@
   `(%do-tree-values (lambda (,val)
 		      ,@body)
 		    (tree-root ,tree)))
+
+(defun tree-list (tree &aux result)
+  (do-tree-values (val tree)
+    (push val result))
+  (nreverse result))
