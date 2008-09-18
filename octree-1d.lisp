@@ -179,7 +179,7 @@
 (defun %do-tree-values (fn sub)
   (cond ((leafp sub)
 	 (unless (leaf-plug-p sub)
-	   (funcall fn sub)))
+	   (funcall fn (leaf-val sub))))
 	(t
 	 (%do-tree-values fn (car sub))
 	 (%do-tree-values fn (cdr sub)))))
