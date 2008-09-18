@@ -1,6 +1,6 @@
 (defpackage octree-1d
   (:nicknames :oct-1d)
-  (:use :common-lisp :alexandria)
+  (:use :common-lisp :alexandria :pergamum)
   (:export
    #:tree #:make-tree #:invalid-tree-address
    #:insert
@@ -19,17 +19,23 @@
 (defun make-plug-leaf (b h)
   (cons :plug (cons :plug (cons b (cons h (cons nil nil))))))
 
-(defstruct (tree (:copier %copy-tree))
+(defstruct (tree (:copier %copy-tree) (:constructor %make-tree))
   (start 0 :type (unsigned-byte 32))
   (length 0 :type (unsigned-byte 32))
   (root (make-plug-leaf 0 0)))
 
-(define-condition invalid-tree-address (error)
-  ((tree :reader cond-tree :initarg :tree)
-   (address :reader cond-address :initarg :address))
+(define-condition tree-error (error)
+  ((tree :reader cond-tree :initarg :tree)))
+
+(define-condition invalid-tree-address (tree-error)
+  ((address :reader cond-address :initarg :address))
   (:report (lambda (cond stream)
              (format stream "~@<Address ~D is out of bounds for tree ~S~:@>"
                      (cond-address cond) (cond-tree cond)))))
+
+(defun make-tree (&key (start 0) length)
+  (declare (type (integer (0)) length))
+  (%make-tree :start start :length (ilog2-cover length)))
 
 (defmacro leaf-addr (leaf)
   `(first ,leaf))
@@ -93,19 +99,19 @@
 	       (if (and l-fit r-fit) ;; barrier is descriptive, no need to subdivide
 		   (progn
 		     (loop :for lr = x :then l :for l = (pop lsew) :while l
-			:do (sew l lr))
+                                                                   :do (sew l lr))
 		     (loop :for rl = y :then r :for r = (pop rsew) :while r
-			:do (sew rl r))
+                                                                   :do (sew rl r))
 		     (sew x y)
 		     (values x y))
 		   (let* ((quarta (ash half -1))
 			  (plug (make-plug-leaf (+ barrier (* quarta (if l-fit 1 -1)))
 						quarta))
 			  (ret (multiple-value-call #'cons
-				(split-leaf-iterate
-				 x y (+ barrier (* quarta (if l-fit -1 1))) quarta
-				 (if l-fit lsew (cons plug lsew))
-				 (if r-fit rsew (cons plug rsew)))))
+                                 (split-leaf-iterate
+                                  x y (+ barrier (* quarta (if l-fit -1 1))) quarta
+                                  (if l-fit lsew (cons plug lsew))
+                                  (if r-fit rsew (cons plug rsew)))))
 			  (subx plug) (suby ret))
 		     (when l-fit (rotatef subx suby))
 		     (values subx suby)))))
@@ -124,12 +130,12 @@
 			(setf (values (car sub) (cdr sub))
 			      (split-leaf-iterate x y barrier half (list prev) (list next))))))))
 	   (iterate (sub barrier half)
-	     (if (leafp sub)
-		 (split-or-replace-leaf sub barrier half)
-		 (let ((quarta (ash half -1)))
-		   (if (< addr barrier)
-		       (iterate (car sub) (- barrier quarta) quarta)
-		       (iterate (cdr sub) (+ barrier quarta) quarta))))))
+             (if (leafp sub)
+                 (split-or-replace-leaf sub barrier half)
+                 (let ((quarta (ash half -1)))
+                   (if (< addr barrier)
+                       (iterate (car sub) (- barrier quarta) quarta)
+                       (iterate (cdr sub) (+ barrier quarta) quarta))))))
     (iterate (tree-root tree)
 	     (+ (tree-start tree)
 		(ash (tree-length tree) -1))
