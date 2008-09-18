@@ -2,11 +2,10 @@
   (:nicknames :oct-1d)
   (:use :common-lisp :alexandria)
   (:export
-   make-tree
-   tree
-   insert
-   resolve resolve-next
-   do-tree-values))
+   #:tree #:make-tree #:invalid-tree-address
+   #:insert
+   #:resolve #:resolve-next
+   #:do-tree-values))
 
 (in-package :oct-1d)
 
@@ -24,6 +23,13 @@
   (start 0 :type (unsigned-byte 32))
   (length 0 :type (unsigned-byte 32))
   (root (make-plug-leaf 0 0)))
+
+(define-condition invalid-tree-address (error)
+  ((tree :reader cond-tree :initarg :tree)
+   (address :reader cond-address :initarg :address))
+  (:report (lambda (cond stream)
+             (format stream "~@<Address ~D is out of bounds for tree ~S~:@>"
+                     (cond-address cond) (cond-tree cond)))))
 
 (defmacro leaf-addr (leaf)
   `(first ,leaf))
@@ -73,6 +79,8 @@
 
 (defun insert (addr val tree)
   (declare (type integer addr))
+  (when (>= addr (tree-length tree))
+    (error 'invalid-tree-address :tree tree :address addr))
   (labels ((sew (p n)
 	     (setf (leaf-prev n) p (leaf-next p) n))
 	   (split-leaf-iterate (x y barrier half lsew rsew)
