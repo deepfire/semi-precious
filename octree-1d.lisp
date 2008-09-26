@@ -86,7 +86,7 @@
 
 (defun insert (addr val tree)
   (declare (type integer addr))
-  (when (>= addr (tree-length tree))
+  (when (>= addr (+ (tree-start tree) (tree-length tree)))
     (error 'invalid-tree-address :tree tree :address addr))
   (labels ((sew (p n)
 	     (setf (leaf-prev n) p (leaf-next p) n))
