@@ -21,7 +21,7 @@
   (cons :plug (cons :plug (cons b (cons h (cons nil nil))))))
 
 (defstruct (tree (:copier %copy-tree) (:constructor %make-tree))
-  (start 0 :type (unsigned-byte 32))
+  (start 0 :type integer)
   (length 0 :type (unsigned-byte 32))
   (root (make-plug-leaf 0 0)))
 
