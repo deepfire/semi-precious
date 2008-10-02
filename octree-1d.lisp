@@ -10,10 +10,13 @@
 
 (in-package :oct-1d)
 
-;; three node formats:
-;; leaf: ((unsigned-byte 32) . (value . (prev . next)))
-;; plug leaf: (:plug . (:plug . (prev . next)))
-;; internal: (node . node)
+;;; three node formats:
+;;; leaf: ((unsigned-byte 32) . (value . (prev . next)))
+;;; plug leaf: (:plug . (:plug . (prev . next)))
+;;; internal: (node . node)
+;;;
+;;; the tree is sewn at leaves (see the leaf format)
+;;; plug nodes describe unclaimed areas in properly split tree format
 (defun make-leaf (addr val prev next)
   (cons addr (cons val (cons nil (cons nil (cons prev next))))))
 
@@ -117,9 +120,9 @@
 		     (when l-fit (rotatef subx suby))
 		     (values subx suby)))))
 	   (split-or-replace-leaf (sub barrier half)
-	     (cond ((leaf-plug-p sub)
+	     (cond ((leaf-plug-p sub)        ;; no information stored
 		    (setf (leaf-addr sub) addr (leaf-val sub) val))
-		   ((= (leaf-addr sub) addr)
+		   ((= (leaf-addr sub) addr) ;; overwriting
 		    (setf (leaf-val sub) val))
 		   (t
 		    (destructuring-bind (saddr sval b h . (prev . next)) sub
@@ -130,17 +133,15 @@
 			    (rotatef x y))
 			(setf (values (car sub) (cdr sub))
 			      (split-leaf-iterate x y barrier half (list prev) (list next))))))))
-	   (iterate (sub barrier half)
+	   (iterate-to-leaf (sub barrier half)
              (if (leafp sub)
                  (split-or-replace-leaf sub barrier half)
                  (let ((quarta (ash half -1)))
                    (if (< addr barrier)
-                       (iterate (car sub) (- barrier quarta) quarta)
-                       (iterate (cdr sub) (+ barrier quarta) quarta))))))
-    (iterate (tree-root tree)
-	     (+ (tree-start tree)
-		(ash (tree-length tree) -1))
-	     (ash (tree-length tree) -1))))
+                       (iterate-to-leaf (car sub) (- barrier quarta) quarta)
+                       (iterate-to-leaf (cdr sub) (+ barrier quarta) quarta))))))
+    (let ((half (ash (tree-length tree) -1)))
+      (iterate-to-leaf (tree-root tree) (+ (tree-start tree) half) half))))
 
 (defun seek-plugs (sub fn)
   (let ((prev (funcall fn sub)))
