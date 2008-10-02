@@ -88,8 +88,9 @@
      :do (print-l iter) (terpri)))
 
 (defun insert (addr val tree)
-  (declare (type integer addr))
-  (when (>= addr (+ (tree-start tree) (tree-length tree)))
+  (declare (optimize (debug 3) (safety 3) (space 0) (speed 0)) (type integer addr))
+  (unless (and (>= addr (tree-start tree))
+               (< addr (+ (tree-start tree) (tree-length tree))))
     (error 'invalid-tree-address :tree tree :address addr))
   (labels ((sew (p n)
 	     (setf (leaf-prev n) p (leaf-next p) n))
