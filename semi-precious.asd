@@ -1,3 +1,5 @@
+;;; -*- Mode: Lisp -*-
+
 (defpackage :semi-precious.system
   (:use :cl :asdf))
 
