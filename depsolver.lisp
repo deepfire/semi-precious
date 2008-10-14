@@ -1,7 +1,7 @@
 (defpackage depsolver
   (:use :cl :alexandria :pergamum)
   (:export
-   depobj depend undepend satisfied-p map-reverse-dependencies solve))
+   depobj depend undepend satisfied-p map-dependencies map-reverse-dependencies solve))
 
 (in-package :depsolver)
 
@@ -35,6 +35,9 @@
   "Pick the next depended-upon object off the list."
   (declare (type depobj o))
   (car (nth-value 2 (hash-table-next (%depobj-dep# o)))))
+
+(defun map-dependencies (fn o)
+  (maphash-values (lambda (x) (funcall fn (car x))) (%depobj-dep# o)))
 
 (defun map-reverse-dependencies (fn o)
   (maphash-values fn (%depobj-rdep# o)))
