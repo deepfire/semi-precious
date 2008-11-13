@@ -13,4 +13,5 @@
    (:file "octree-1d")
    (:file "dictionary")
    (:file "state")
-   (:file "circular")))
+   (:file "circular")
+   (:file "early-eval")))
