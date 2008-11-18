@@ -88,7 +88,7 @@
   (zerop (hash-table-count (env-bindings env))))
 
 (defun sym-value (env symbol)
-  (declare (type symbol name) (type environment env))
+  (declare (type symbol symbol) (type environment env))
   (multiple-value-bind (value exist-p) (gethash symbol (env-bindings env))
     (unless exist-p
       (error "~@<Symbol ~S is not bound in ~S.~:@>" symbol env))
