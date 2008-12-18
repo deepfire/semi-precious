@@ -82,4 +82,5 @@
 	  (funcall (cdr state) (machine-parameter machine))
 	  (funcall (machine-change-fn machine) from (car state))
 	  (setf (machine-current machine) (car state)
-		from (car state)))))))
+		from (car state))))))
+  to)
