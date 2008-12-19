@@ -18,12 +18,6 @@
 ;;; Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 ;;; Boston, MA  02111-1307  USA.
 
-(defpackage discrimination
-  (:use :cl :alexandria)
-  (:export
-   #:discriminator #:binary-discriminator #:set-discriminator #:discriminator-sub #:discriminator-subs
-   #:discrimination-error #:discrimination-value-unbound #:discriminate
-   #:discriminator-by-id-path #:discriminator-by-value-path))
 
 (in-package :discrimination)
 

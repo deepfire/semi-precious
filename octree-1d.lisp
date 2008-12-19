@@ -18,15 +18,6 @@
 ;;; Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 ;;; Boston, MA  02111-1307  USA.
 
-(defpackage octree-1d
-  (:nicknames :oct-1d)
-  (:use :common-lisp :alexandria :pergamum)
-  (:export
-   #:tree #:make-tree #:invalid-tree-address
-   #:insert
-   #:resolve #:resolve-next
-   #:do-tree-values
-   #:tree-list))
 
 (in-package :oct-1d)
 
@@ -170,7 +161,7 @@
 	(seek-plugs prev fn)
 	prev)))
 
-(defun %resolve (addr tree)
+(defun %tree-left (addr tree)
   (labels ((iterate (sub barrier half)
 	     (if (leafp sub)
 		 (if (leaf-plug-p sub)
@@ -187,31 +178,39 @@
 		(ash (tree-length tree) -1))
 	     (ash (tree-length tree) -1))))
 
-(defun resolve (addr tree)
-  (let ((result (%resolve addr tree)))
+(defun tree-left (addr tree)
+  "Find in TREE the most adjacent value-address pair with address less,
+   or equal to ADDR, and return name and address as multiple values, or NIL."
+  (let ((result (%tree-left addr tree)))
     (when result
       (values (cadr result) (car result)))))
 
-(defun resolve-next (addr tree)
-  (let* ((prev (%resolve addr tree))
-	 (next (when prev (seek-plugs prev #'leaf-next))))
-    (when next
-      (values (cadr next) (car next)))))
+(defun tree-right (addr tree)
+  "Find in TREE the most adjacent value-address pair with address more
+   than ADDR, and return name and address as multiple values, or NIL."
+  (let* ((prev (%resolve addr tree)))
+    (if-let ((next (when prev (seek-plugs prev #'leaf-next))))
+      (values (cadr next) (car next))
+      (let ((leftmost (leftmost tree)))
+        (values (cadr leftmost) (car leftmost))))))
 
-(defun %do-tree-values (fn sub)
-  (cond ((leafp sub)
-	 (unless (leaf-plug-p sub)
-	   (funcall fn (leaf-val sub))))
+(defun mapc-tree-values (fn tree)
+  "Map FN over TREE values. Return NIL."
+  (cond ((leafp tree)
+	 (unless (leaf-plug-p tree) 
+	   (funcall fn (leaf-val tree))))
 	(t
-	 (%do-tree-values fn (car sub))
-	 (%do-tree-values fn (cdr sub)))))
+	 (%do-tree-values fn (car tree))
+	 (%do-tree-values fn (cdr tree)))))
 
 (defmacro do-tree-values ((val tree) &body body)
-  `(%do-tree-values (lambda (,val)
-		      ,@body)
+  "Execute BODY for every value (lexically bound to VAL) in TREE."
+  `(mapc-tree-values (lambda (,val)
+                       ,@body)
 		    (tree-root ,tree)))
 
 (defun tree-list (tree &aux result)
+  "Flatten TREE."
   (do-tree-values (val tree)
     (push val result))
   (nreverse result))
