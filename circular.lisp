@@ -18,17 +18,6 @@
 ;;; Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 ;;; Boston, MA  02111-1307  USA.
 
-(defpackage circular-buffer
-  (:nicknames :circbuf)
-  (:use :common-lisp :iterate :alexandria)
-  (:export
-   #:circular-buffer
-   #:circular-buffer-elt #:circular-buffer-elt-tailwards
-   #:circular-buffer-shrink #:circular-buffer-extend
-   #:circular-buffer-push
-   #:circular-buffer-size #:circular-buffer-limit
-   #:circular-buffer-sublist-headwards
-   #:do-circular-buffer))
 
 (in-package :circular-buffer)
 

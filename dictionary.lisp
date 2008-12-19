@@ -18,20 +18,6 @@
 ;;; Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 ;;; Boston, MA  02111-1307  USA.
 
-(defpackage dictionary
-  (:use :cl :alexandria :iterate)
-  (:export
-   ;; types
-   #:dictionary
-   ;; conditions
-   #:unknown-symbol #:dictionaries-not-form-subset-superset-relation
-   ;; accessors
-   #:symbol-id #:id-value #:set-id-value #:symbol-present-p
-   ;;
-   #:add-symbol-unchecked #:add-symbol
-   #:copy-dictionary
-   #:dictionary-subset-p
-   #:submerge-dictionary-to))
 
 (in-package :dictionary)
 

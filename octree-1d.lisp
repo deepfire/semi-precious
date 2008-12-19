@@ -18,15 +18,6 @@
 ;;; Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 ;;; Boston, MA  02111-1307  USA.
 
-(defpackage octree-1d
-  (:nicknames :oct-1d)
-  (:use :common-lisp :alexandria :pergamum)
-  (:export
-   #:tree #:make-tree #:invalid-tree-address
-   #:insert
-   #:tree-left #:tree-right
-   #:mapc-tree-values #:do-tree-values
-   #:tree-list))
 
 (in-package :oct-1d)
 

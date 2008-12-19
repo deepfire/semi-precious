@@ -8,10 +8,12 @@
 (defsystem :semi-precious
   :depends-on (:alexandria :pergamum :iterate)
   :components
-  ((:file "depsolver")
-   (:file "discrimination")
-   (:file "octree-1d")
-   (:file "dictionary")
-   (:file "state")
-   (:file "circular")
-   (:file "early-eval")))
+  ((:file "packages")
+   ;;;
+   (:file "depsolver" :depends-on ("packages"))
+   (:file "discrimination" :depends-on ("packages"))
+   (:file "octree-1d" :depends-on ("packages"))
+   (:file "dictionary" :depends-on ("packages"))
+   (:file "state" :depends-on ("packages"))
+   (:file "circular" :depends-on ("packages"))
+   (:file "early-eval" :depends-on ("packages"))))

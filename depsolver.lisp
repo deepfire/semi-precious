@@ -18,10 +18,6 @@
 ;;; Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 ;;; Boston, MA  02111-1307  USA.
 
-(defpackage depsolver
-  (:use :cl :alexandria :pergamum)
-  (:export
-   depobj depend undepend satisfied-p map-dependencies map-reverse-dependencies solve))
 
 (in-package :depsolver)
 
