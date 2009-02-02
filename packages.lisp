@@ -25,7 +25,7 @@
    ;; conditions
    #:unknown-symbol #:dictionaries-not-form-subset-superset-relation
    ;; accessors
-   #:symbol-id #:id-value #:set-id-value #:symbol-present-p
+   #:symbol-id #:id-value #:set-id-value #:symbol-present-p #:translation #:set-translation
    ;;
    #:add-symbol-unchecked #:add-symbol
    #:copy-dictionary

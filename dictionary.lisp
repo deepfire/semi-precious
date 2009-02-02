@@ -64,6 +64,18 @@
 
 (defsetf id-value set-id-value)
 
+(defun translation (dictionary symbol)
+  "Look up the value associated with SYMBOL in DICTIONARY."
+  (declare (dictionary dictionary) (symbol symbol))
+  (id-value dictionary (symbol-id dictionary symbol)))
+
+(defun set-translation (dictionary symbol new-val)
+  "Change the value currently associated with SYMBOL in DICTIONARY to NEW-VAL."
+  (declare (dictionary dictionary) (symbol symbol))
+  (setf (id-value dictionary (symbol-id dictionary symbol)) new-val))
+
+(defsetf translation set-translation)
+
 (declaim (inline add-symbol-unchecked))
 (defun add-symbol-unchecked (dictionary symbol value &aux (values-vec (dictionary-ids-to-values dictionary)))
   "Adds SYMBOL -> VALUE mapping into DICTIONARY.
