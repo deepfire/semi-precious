@@ -21,7 +21,7 @@
   (:use :cl :alexandria :iterate)
   (:export
    ;; types
-   #:dictionary
+   #:dictionary #:make-dictionary
    ;; conditions
    #:unknown-symbol #:dictionaries-not-form-subset-superset-relation
    ;; accessors
