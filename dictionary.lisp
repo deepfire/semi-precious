@@ -81,7 +81,7 @@
   "Adds SYMBOL -> VALUE mapping into DICTIONARY.
    Does not check if SYMBOL is already present."
   (setf (gethash symbol (dictionary-symbols-to-ids dictionary))
-        (1- (vector-push-extend value values-vec (dictionary-growth-size dictionary)))))
+        (vector-push-extend value values-vec (dictionary-growth-size dictionary))))
 
 (defun add-symbol (dictionary symbol value &optional (error-p t))
   "Add SYMBOL -> VALUE mapping into DICTIONARY, unless it is already present,
