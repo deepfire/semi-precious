@@ -71,12 +71,13 @@
   (setf (gethash symbol (dictionary-symbols-to-ids dictionary))
         (1- (vector-push-extend value values-vec (dictionary-growth-size dictionary)))))
 
-(defun add-symbol (dictionary symbol value)
-  "Adds SYMBOL -> VALUE mapping into DICTIONARY.
-   If SYMBOL is already present, an error is raised."
-  (when (symbol-present-p dictionary symbol)
-    (error 'symbol-already-present :name symbol))
-  (add-symbol-unchecked dictionary symbol value))
+(defun add-symbol (dictionary symbol value &optional (error-p t))
+  "Add SYMBOL -> VALUE mapping into DICTIONARY, unless it is already present,
+   in which case an error is raised, unless ERROR-P is NIL."
+  (cond ((null (symbol-present-p dictionary symbol))
+         (add-symbol-unchecked dictionary symbol value))
+        (error-p
+         (error 'symbol-already-present :name symbol))))
 
 (defun copy-dictionary (d)
   "Return a copy of dictionary D."
