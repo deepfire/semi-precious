@@ -57,7 +57,7 @@
   (aref (dictionary-ids-to-values dictionary) id))
 
 (declaim (inline set-id-value))
-(defun set-id-value (new-val dictionary id)
+(defun set-id-value (dictionary id new-val)
   "Set the value associated with ID in DICTIONARY to NEW-VAL."
   (declare (type dictionary dictionary) (type (integer 0) id))
   (setf (aref (dictionary-ids-to-values dictionary) id) new-val))
