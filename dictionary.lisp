@@ -37,6 +37,12 @@
              (format s "~@<Dictionary ~S does not form a subset of ~S, symbol ~S is missing.~:@>"
                      (dictionary-mismatch-sub c) (dictionary-mismatch-super c) (cell-error-name c)))))
 
+(declaim (inline dictionary-id-map))
+(defun dictionary-id-map (dictionary)
+  "Return the DICTIONARY's id to value map vector."
+  (declare (type dictionary dictionary))
+  (dictionary-ids-to-values dictionary))
+
 (declaim (inline symbol-id))
 (defun symbol-id (dictionary symbol)
   "Return the id of SYMBOL in DICTIONARY."
