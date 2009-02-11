@@ -11,14 +11,14 @@
    #:do-circular-buffer))
 
 (defpackage depsolver
-  (:use :cl :alexandria :pergamum)
+  (:use :common-lisp :alexandria :pergamum)
   (:export
    #:depobj #:depend #:undepend #:satisfied-p
    #:map-dependencies #:map-reverse-dependencies
    #:solve))
 
 (defpackage dictionary
-  (:use :cl :alexandria :iterate)
+  (:use :common-lisp :alexandria :iterate)
   (:export
    ;; types
    #:dictionary #:make-dictionary
@@ -33,7 +33,7 @@
    #:submerge-dictionary-to))
 
 (defpackage discrimination
-  (:use :cl :alexandria)
+  (:use :common-lisp :alexandria)
   (:export
    #:discriminator #:binary-discriminator #:set-discriminator #:discriminator-sub #:discriminator-subs
    #:discrimination-error #:discrimination-value-unbound #:discriminate
@@ -58,7 +58,7 @@
    #:tree-list))
 
 (defpackage state
-  (:use :cl :alexandria)
+  (:use :common-lisp :alexandria)
   (:export
    #:machine #:make-machine #:machine-parameter
    #:deftransition
