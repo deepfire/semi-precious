@@ -47,6 +47,11 @@
    #:sym-value
    #:eeval))
 
+(defpackage meta
+  (:use :common-lisp :alexandria :pergamum :iterate)
+  (:export
+   #:explore-package #:describe-package))
+
 (defpackage octree-1d
   (:nicknames :oct-1d)
   (:use :common-lisp :alexandria :pergamum)

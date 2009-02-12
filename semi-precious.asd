@@ -16,4 +16,5 @@
    (:file "dictionary" :depends-on ("packages"))
    (:file "state" :depends-on ("packages"))
    (:file "circular" :depends-on ("packages"))
-   (:file "early-eval" :depends-on ("packages"))))
+   (:file "early-eval" :depends-on ("packages"))
+   (:file "meta" :depends-on ("packages"))))
