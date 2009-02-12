@@ -44,7 +44,7 @@
   (zerop (hash-table-count (%depobj-dep# o))))
 
 (defun color-satisfied-p (o color)
-  (declare (type depobj o))
+  (declare (type depobj o) (ignore color))
   (zerop (hash-table-count (%depobj-dep# o))))
 
 (defun next-dep (o)

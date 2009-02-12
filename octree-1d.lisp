@@ -188,7 +188,7 @@
 (defun tree-right (addr tree)
   "Find in TREE the most adjacent value-address pair with address more
    than ADDR, and return name and address as multiple values, or NIL."
-  (let* ((prev (%resolve addr tree)))
+  (let* ((prev (tree-left addr tree)))
     (if-let ((next (when prev (seek-plugs prev #'leaf-next))))
       (values (cadr next) (car next))
       (let ((leftmost (leftmost tree)))
@@ -200,8 +200,8 @@
 	 (unless (leaf-plug-p tree) 
 	   (funcall fn (leaf-val tree))))
 	(t
-	 (%do-tree-values fn (car tree))
-	 (%do-tree-values fn (cdr tree)))))
+	 (mapc-tree-values fn (car tree))
+	 (mapc-tree-values fn (cdr tree)))))
 
 (defmacro do-tree-values ((val tree) &body body)
   "Execute BODY for every value (lexically bound to VAL) in TREE."

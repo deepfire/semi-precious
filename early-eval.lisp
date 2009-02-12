@@ -21,7 +21,7 @@
 
 (in-package :early-eval)
 
-(eval-when (:compile-toplevel)
+(eval-when (:compile-toplevel :execute)
   (enable-curry-reader)
   (enable-compose-reader))
 

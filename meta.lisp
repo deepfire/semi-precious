@@ -23,12 +23,15 @@
 
 #.(when (find-package :swank) (pushnew :swank *features*) nil)
 
+#+sbcl (require :sb-introspect)
+
 (defun may-imbue-stream-p (stream)
+  (declare (ignorable stream))
   #+swank (swank::with-struct (swank::connection. swank::user-output swank::user-io swank::trace-output swank::repl-results) (swank::default-connection)
             (member stream (list swank::user-output swank::user-io swank::trace-output swank::repl-results))))
 
 (defun imbue (stream object &optional colon-p at-sign-p)
-  (declare (ignore colon-p at-sign-p))
+  (declare (ignorable stream object) (ignore colon-p at-sign-p))
   #+swank
   (progn
     (assert (may-imbue-stream-p stream))
