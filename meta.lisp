@@ -23,8 +23,6 @@
 
 #.(when (find-package :swank) (pushnew :swank *features*) nil)
 
-#+sbcl (require :sb-introspect)
-
 (defun may-imbue-stream-p (stream)
   (declare (ignorable stream))
   #+swank (swank::with-struct (swank::connection. swank::user-output swank::user-io swank::trace-output swank::repl-results) (swank::default-connection)
