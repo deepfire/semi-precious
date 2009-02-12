@@ -34,7 +34,6 @@
   (:method ((type (eql 'class))) "es"))
 
 (defun function-arglist (fn)
-  "Determine the argument list of FN."
   (let ((arglist #+sbcl (sb-introspect:function-arglist fn)
                  #-sbcl nil))
     (subseq arglist 0 (position '&aux arglist))))
