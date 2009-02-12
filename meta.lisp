@@ -21,7 +21,7 @@
 
 (in-package :meta)
 
-#.(when (find-package :swank) (push :swank *features*) nil)
+#.(when (find-package :swank) (pushnew :swank *features*) nil)
 
 (defun may-imbue-stream-p (stream)
   #+swank (swank::with-struct (swank::connection. swank::user-output swank::user-io swank::trace-output swank::repl-results) (swank::default-connection)
@@ -61,6 +61,12 @@
   (:method ((o symbol) (type (eql 'function))) (function-arglist o))
   (:method ((o symbol) (type (eql 'macro)))    (function-arglist o)))
 
+(defgeneric find-object (object type)
+  (:method (object (type (eql 'variable))) object)
+  (:method (object (type (eql 'function))) (fdefinition object))
+  (:method (object (type (eql 'macro))) (macro-function object))
+  (:method (object (type (eql 'class))) (find-class object nil)))
+
 (defun downgraded-documentation-type (type)
   (if (eq type 'macro) 'function type))
 
@@ -94,11 +100,14 @@
   (values (or documentation (format nil "Undocumented ~(~A~)." type))
           (not (null documentation))))
 
-(defun describe-symbol-block (stream type symbols describe-undocumented)
+(defun describe-symbol-block (stream type symbols describe-undocumented imbue-p)
   (flet ((long-description-p (docstring) (find #\Newline docstring)))
     (iter (for sym in (sort symbols #'string< :key #'symbol-name))
-          (destructuring-bind (word &rest params) (mapcar #'list (ensure-list (nfsubst (fif #'symbolp #'symbol-name #'write-to-string) (cons sym (arglist sym type)))))
-            (format stream (format nil "~~@<~A ~~;~~{~~<~~A~~:_~~:@> ~~}~~:@>~~%" (car word)) params))
+          (for params = (mapcar #'list (ensure-list (nfsubst (fif #'symbolp #'symbol-name #'write-to-string) (arglist sym type)))))
+          (apply #'format stream (if (and (may-imbue-stream-p stream) imbue-p)
+                                     (list "~/meta:imbue/ " (find-object sym type))
+                                     (list "~A " sym)))
+          (format stream "~@<~{~<~A~:_~:@> ~}~:@>~%" params)
           (multiple-value-bind (documentation documented-p) (presentable-documentation sym type)
             (when (or documented-p describe-undocumented)
               (format stream "    ~<~W~:@>~:[~;~%~]~%" documentation (long-description-p documentation)))))))
@@ -113,7 +122,7 @@
             (list #'string< :key (compose #'pathname-name #'car))
             (lambda (pathname) (format nil "~%===[ () ~A.~A:~%~%" (pathname-name pathname) (pathname-type pathname))))))
 
-(defun describe-symbols (symbols type &key (stream t) (blocking-threshold 15) (blocking-discriminator :first-letter) (describe-undocumented t))
+(defun describe-symbols (symbols type &key (stream t) (blocking-threshold 15) (blocking-discriminator :first-letter) (describe-undocumented t) imbue-p)
   "Describe SYMBOLS designating objects of TYPE to STREAM.
 
    If the amount of symbols exceeds BLOCKING-THRESHOLD, split the descriptions
@@ -128,20 +137,24 @@
      for BLOCKING-DISCRIMINATOR:
        :FIRST-LETTER, meaning the first letter of symbol name,
        :DEFINITION-FILENAME, meaning the pathname where the respective symbol 
-          was defined as TYPE."
+          was defined as TYPE.
+
+   When IMBUE-P is non-NIL, the objects designated by symbols are sent to
+   Slime, when possible."
   (format stream "~%~A~A:~%~%" (classification type) (plural-suffix type))
   (if (< (length symbols) blocking-threshold)
-      (describe-symbol-block stream type symbols describe-undocumented)
+      (describe-symbol-block stream type symbols describe-undocumented imbue-p)
       (let ((buckets (make-hash-table :test 'equal)))
         (multiple-value-bind (discriminator-function block-sort-parameters annotation-function) (blocking-parameters blocking-discriminator type)
           (dolist (sym symbols)
             (push sym (gethash (funcall discriminator-function sym) buckets)))
-          (let ((buckets (apply #'sort (hash-table-alist buckets) block-sort-parameters)))
+          (let ((buckets (apply #'sort (hash-table-alist buckets) block-sort-parameters))
+                (stream (xform-if (feq t) (constantly *standard-output*) stream)))
             (iter (for (key . bucket) in buckets)
-                  (write-sequence (funcall annotation-function key) (xform-if (feq t) (constantly *standard-output*) stream))
-                  (describe-symbol-block stream type bucket describe-undocumented)))))))
+                  (write-sequence (funcall annotation-function key) stream)
+                  (describe-symbol-block stream type bucket describe-undocumented imbue-p)))))))
 
-(defun describe-package (package &rest keys &key (stream t) (blocking-threshold 15) (blocking-discriminator :first-letter) (describe-undocumented t))
+(defun describe-package (package &rest keys &key (stream t) (blocking-threshold 15) (blocking-discriminator :first-letter) (describe-undocumented t) imbue-p)
   "Describe symbols in PACKAGE to STREAM.
 
    If the amount of symbols exceeds BLOCKING-THRESHOLD, split the descriptions
@@ -156,8 +169,11 @@
      for BLOCKING-DISCRIMINATOR:
        :FIRST-LETTER, meaning the first letter of symbol name,
        :DEFINITION-FILENAME, meaning the pathname where the respective symbol 
-          was defined as TYPE."
-  (declare (ignore blocking-threshold blocking-discriminator describe-undocumented))
+          was defined as TYPE.
+
+   When IMBUE-P is non-NIL, the objects designated by symbols are sent to
+   Slime, when possible."
+  (declare (ignore blocking-threshold blocking-discriminator describe-undocumented imbue-p))
   (destructuring-bind (exported &rest sym-sets) (multiple-value-list (explore-package package))
     (when exported
       (format stream "Package ~A, has ~D external symbols, among them:~%"
