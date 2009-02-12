@@ -21,7 +21,8 @@
 
 (in-package :meta)
 
-#.(when (find-package :swank) (pushnew :swank *features*) nil)
+(eval-when (:compile-toplevel)
+  (when (find-package :swank) (pushnew :swank *features*) nil))
 
 (defun may-imbue-stream-p (stream)
   (declare (ignorable stream))
