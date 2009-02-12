@@ -68,17 +68,23 @@
         (push sym classes)))
     (values externals variables functions macros classes)))
 
-(defun presentable-documentation (object type)
-  (or (documentation object (downgraded-documentation-type type))
-      (format nil "Undocumented ~(~A~)." type)))
+(defun object-documentation (object type)
+  (documentation object (downgraded-documentation-type type)))
 
-(defun describe-symbol-block (stream type symbols)
+(defun presentable-documentation (object type &aux (documentation (object-documentation object type)))
+  "Return user-presentable documentation for OBJECT of TYPE and
+   the presence of documentation as values."
+  (values (or documentation (format nil "Undocumented ~(~A~)." type))
+          (not (null documentation))))
+
+(defun describe-symbol-block (stream type symbols describe-undocumented)
   (flet ((long-description-p (docstring) (find #\Newline docstring)))
     (iter (for sym in (sort symbols #'string< :key #'symbol-name))
           (destructuring-bind (word &rest params) (mapcar #'list (ensure-list (nfsubst (fif #'symbolp #'symbol-name #'write-to-string) (cons sym (arglist sym type)))))
             (format stream (format nil "~~@<~A ~~;~~{~~<~~A~~:_~~:@> ~~}~~:@>~~%" (car word)) params))
-          (let ((documentation (presentable-documentation sym type)))
-            (format stream "    ~<~W~:@>~:[~;~%~]~%" documentation (long-description-p documentation))))))
+          (multiple-value-bind (documentation documented-p) (presentable-documentation sym type)
+            (when (or documented-p describe-undocumented)
+              (format stream "    ~<~W~:@>~:[~;~%~]~%" documentation (long-description-p documentation)))))))
 
 (defgeneric blocking-parameters (discriminator type)
   (:method ((d (eql :first-letter)) type)
@@ -88,9 +94,9 @@
   (:method ((d (eql :definition-filename)) type)
     (values (rcurry #'definition-source-pathname type)
             (list #'string< :key (compose #'pathname-name #'car))
-            (lambda (pathname) (format nil "~%~A.~A:~%~%" (pathname-name pathname) (pathname-type pathname))))))
+            (lambda (pathname) (format nil "~%===[ () ~A.~A:~%~%" (pathname-name pathname) (pathname-type pathname))))))
 
-(defun describe-symbols (symbols type &key (stream t) (blocking-threshold 15) (blocking-discriminator :first-letter))
+(defun describe-symbols (symbols type &key (stream t) (blocking-threshold 15) (blocking-discriminator :first-letter) (describe-undocumented t))
   "Describe SYMBOLS designating objects of TYPE to STREAM.
 
    If the amount of symbols exceeds BLOCKING-THRESHOLD, split the descriptions
@@ -108,7 +114,7 @@
           was defined as TYPE."
   (format stream "~%~A~A:~%~%" (classification type) (plural-suffix type))
   (if (< (length symbols) blocking-threshold)
-      (describe-symbol-block stream type symbols)
+      (describe-symbol-block stream type symbols describe-undocumented)
       (let ((buckets (make-hash-table :test 'equal)))
         (multiple-value-bind (discriminator-function block-sort-parameters annotation-function) (blocking-parameters blocking-discriminator type)
           (dolist (sym symbols)
@@ -116,9 +122,9 @@
           (let ((buckets (apply #'sort (hash-table-alist buckets) block-sort-parameters)))
             (iter (for (key . bucket) in buckets)
                   (write-sequence (funcall annotation-function key) (xform-if (feq t) (constantly *standard-output*) stream))
-                  (describe-symbol-block stream type bucket)))))))
+                  (describe-symbol-block stream type bucket describe-undocumented)))))))
 
-(defun describe-package (package &rest keys &key (stream t) (blocking-threshold 15) (blocking-discriminator :first-letter))
+(defun describe-package (package &rest keys &key (stream t) (blocking-threshold 15) (blocking-discriminator :first-letter) (describe-undocumented t))
   "Describe symbols in PACKAGE to STREAM.
 
    If the amount of symbols exceeds BLOCKING-THRESHOLD, split the descriptions
@@ -134,7 +140,7 @@
        :FIRST-LETTER, meaning the first letter of symbol name,
        :DEFINITION-FILENAME, meaning the pathname where the respective symbol 
           was defined as TYPE."
-  (declare (ignore blocking-threshold blocking-discriminator))
+  (declare (ignore blocking-threshold blocking-discriminator describe-undocumented))
   (destructuring-bind (exported &rest sym-sets) (multiple-value-list (explore-package package))
     (when exported
       (format stream "Package ~A, has ~D external symbols, among them:~%"
@@ -143,3 +149,13 @@
             (for type in '(variable function macro class))
             (when sym-set
               (apply #'describe-symbols sym-set type :stream t keys))))))
+
+(defun package-undocumented-symbols (package)
+  "Return the list of PACKAGE's external symbols which have
+   undocumented objects associated with them."
+  (destructuring-bind (exported &rest sym-sets) (multiple-value-list (explore-package package))
+    (declare (ignore exported))
+    (lret (undocumented)
+      (iter (for sym-set in sym-sets)
+            (for type in '(variable function macro class))
+            (appendf undocumented (remove-if (rcurry #'object-documentation type) sym-set))))))
