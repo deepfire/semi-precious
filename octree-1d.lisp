@@ -188,7 +188,7 @@
 (defun tree-right (addr tree)
   "Find in TREE the most adjacent value-address pair with address more
    than ADDR, and return name and address as multiple values, or NIL."
-  (let* ((prev (tree-left addr tree)))
+  (let* ((prev (%tree-left addr tree)))
     (if-let ((next (when prev (seek-plugs prev #'leaf-next))))
       (values (cadr next) (car next))
       (let ((leftmost (leftmost tree)))
