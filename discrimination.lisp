@@ -34,7 +34,7 @@
   ((discriminator :accessor condition-discriminator :initarg :discriminator)))
 
 (define-condition discrimination-value-unbound (discrimination-error)
-  ((value :accessor condition-value :initarg :value))
+  ((value :accessor discrimination-value-unbound-value :initarg :value))
   (:report (lambda (condition stream)
              (format stream "~@<discriminator ~S has no binding for value ~S~:@>"
                      (condition-discriminator condition) (condition-value condition)))))
