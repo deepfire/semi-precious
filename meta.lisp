@@ -54,7 +54,7 @@
   (:method ((type (eql 'class))) "es"))
 
 (defun function-arglist (fn)
-  (let ((arglist #+sbcl (sb-introspect:function-arglist fn)
+  (let ((arglist #+sbcl (sb-introspect:function-lambda-list fn)
                  #-sbcl nil))
     (subseq arglist 0 (position '&aux arglist))))
 
