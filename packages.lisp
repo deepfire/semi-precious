@@ -66,5 +66,5 @@
   (:use :common-lisp :alexandria)
   (:export
    #:machine #:make-machine #:machine-parameter
-   #:deftransition
+   #:transition-action #:set-transition-action
    #:state))

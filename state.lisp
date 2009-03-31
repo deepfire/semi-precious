@@ -47,11 +47,18 @@
 (defun (setf outgoing) (val machine state)
   (setf (cdr (gethash state (machine-states machine))) val))
 
-(defun deftransition (machine from to action)
+(defun transition-action (machine from to)
+  (cdr (assoc to (outgoing machine from))))
+
+(defun set-transition-action (machine from to action)
   (unless (and (state-present-p machine from) (state-present-p machine to))
-    (error "DEFTRANSITION: ~S -> ~S identifies an inexistent state pair." from to))
-  (push (cons to action) (outgoing machine from))
-  (push from (incoming machine to)))
+    (error "~@<~S: ~S -> ~S identifies an inexistent state pair.~@:>" machine from to))
+  (let ((cons (or (assoc to (outgoing machine from))
+                  (prog1 (first (push (cons to nil) (outgoing machine from)))
+                    (push from (incoming machine to))))))
+    (rplacd cons action)))
+
+(defsetf transition-action set-transition-action)
 
 (defun direct-transition (machine from to)
   (if-let ((transition (assoc to (outgoing machine from))))
