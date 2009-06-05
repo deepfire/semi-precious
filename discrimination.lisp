@@ -37,7 +37,7 @@
   ((value :accessor discrimination-value-unbound-value :initarg :value))
   (:report (lambda (condition stream)
              (format stream "~@<discriminator ~S has no binding for value ~S~:@>"
-                     (condition-discriminator condition) (condition-value condition)))))
+                     (condition-discriminator condition) (discrimination-value-unbound-value condition)))))
 
 (defclass binary-discriminator (discriminator)
   ((fn :type (function (*) boolean))
