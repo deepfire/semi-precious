@@ -1,3 +1,10 @@
+(defpackage allocation-pool
+  (:nicknames :allocpool)
+  (:use :common-lisp :alexandria :pergamum)
+  (:export
+   #:allocation-condition #:allocation-error #:simple-allocation-error
+   #:allocate #:release #:with-allocator #:allocate-let #:eval-allocated))
+
 (defpackage circular-buffer
   (:nicknames :circbuf)
   (:use :common-lisp :iterate :alexandria)

@@ -12,6 +12,7 @@
   :components
   ((:file "packages")
 ;;;
+   (:file "allocation-pool" :depends-on ("packages"))
    (:file "depsolver" :depends-on ("packages"))
    (:file "discrimination" :depends-on ("packages"))
    (:file "octree-1d" :depends-on ("packages"))
