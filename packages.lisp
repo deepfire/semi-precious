@@ -43,7 +43,7 @@
   (:use :common-lisp :alexandria)
   (:export
    #:discriminator #:binary-discriminator #:set-discriminator #:discriminator-sub #:discriminator-subs
-   #:discrimination-error #:discrimination-value-unbound #:discrimination-value-unbound-value #:discriminate
+   #:discrimination-condition #:discrimination-error #:discrimination-value-unbound #:discrimination-value-unbound-error #:discrimination-value-unbound-value #:discriminate
    #:discriminator-by-id-path #:discriminator-by-value-path))
 
 (defpackage early-eval

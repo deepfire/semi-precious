@@ -30,14 +30,20 @@
     (format stream "~@<#<~;~A:~A fn: ~S~;>~:@>"
 	    (type-of d) (slot 'id) (slot 'fn))))
 
-(define-condition discrimination-error (error)
+(define-condition discrimination-condition ()
   ((discriminator :accessor condition-discriminator :initarg :discriminator)))
 
-(define-condition discrimination-value-unbound (discrimination-error)
+(define-condition discrimination-error (discrimination-condition)
+  ())
+
+(define-condition discrimination-value-unbound (discrimination-condition)
   ((value :accessor discrimination-value-unbound-value :initarg :value))
   (:report (lambda (condition stream)
              (format stream "~@<discriminator ~S has no binding for value ~S~:@>"
                      (condition-discriminator condition) (discrimination-value-unbound-value condition)))))
+
+(define-condition discrimination-value-unbound-error (discrimination-value-unbound discrimination-error)
+  ())
 
 (defclass binary-discriminator (discriminator)
   ((fn :type (function (*) boolean))
@@ -73,8 +79,11 @@
   (let* ((value (apply (discriminator-fn d) params))
          (sub (discriminator-sub d value)))
     (typecase sub
-      (discriminator (discriminate sub))
-      (null (error 'discrimination-value-unbound :discriminator d :value value))
+      (discriminator
+       (discriminate sub))
+      (null
+       (signal 'discrimination-value-unbound :discriminator d :value value)
+       nil)
       (t sub))))
 
 (defun discriminator-by-id-path (path at)
