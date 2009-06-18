@@ -62,7 +62,7 @@ the result of EVAL-ALLOCATED form evaluations."
   (when (and bound-set (not name))
     (allocation-error "~@<Requested to bind allocatables with no pool specified.~:@>"))
   (multiple-value-bind (decls body) (destructure-binding-form-body body)
-    (let* ((specials (apply #'append (mapcar #'rest (remove 'special decls :test-not #'eq))))
+    (let* ((specials (apply #'append (mapcar #'rest (remove 'special decls :key #'car :test-not #'eq))))
            (lexicals (set-difference bound-set specials)))
       (when-let ((unknown-vars (set-difference specials bound-set)))
         (allocation-error "~@<ALLOCATE-LET:~; Unknown variables were declared special: ~S~:@>~%" unknown-vars))
