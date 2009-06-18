@@ -21,7 +21,7 @@
 
 (in-package :dictionary)
 
-(defstruct dictionary
+(defstruct (dictionary (:copier %copy-dictionary))
   (ids-to-values (make-array 16 :adjustable t :fill-pointer 0) :type vector)
   (symbols-to-ids (make-hash-table :test 'eq) :type hash-table)
   (growth-size 16 :type (integer (0))))
