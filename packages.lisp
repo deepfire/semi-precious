@@ -4,7 +4,7 @@
   (:export
    #:allocation-condition #:allocation-error #:simple-allocation-error
    #:pool-allocate #:pool-release #:with-allocator #:allocate-let #:eval-allocated #:pool-allocate-lexical
-   #:track-key #:map-tracker-key-references #:tracker-set-key-value-and-finalizer #:tracker-reference-key #:tracker-release-key-and-process-references
+   #:track-key #:map-tracker-key-references #:map-tracked-keys #:tracker-set-key-value-and-finalizer #:tracker-reference-key #:tracker-release-key-and-process-references
    #:tracker-add-key-value-and-finalizer
    #:with-tracker #:tracker-let))
 

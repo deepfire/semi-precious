@@ -120,6 +120,15 @@ established by the most recently entered WITH-TRACKER form with NAME."
     (mapc fn (cddr binding))
     (allocation-error "~@<Key ~S is not tracked in pool ~S.~:@>" global-key name)))
 
+(defun map-tracked-keys (name fn &aux
+                         (tracked-list (format-symbol (symbol-package name) "*TRACKED-~A*" name)))
+  "Map FN over the keys tracked in the pool established by the most recently
+entered WITH-TRACKER form with NAME.
+FN must be a function of three arguments, and it will be provided with
+the key name, its finalizer and the list of references."
+  (iter (for (name (global-key finalizer . references)) in (the list (symbol-value tracked-list)))
+        (funcall fn global key finalizer references)))
+
 (defun tracker-set-key-value-and-finalizer (name key finalizer value &aux
                                             (global-key (globalise-tracked-key name key))
                                             (tracked-list (format-symbol (symbol-package name) "*TRACKED-~A*" name)))
