@@ -1,9 +1,11 @@
 (defpackage allocation-pool
   (:nicknames :allocpool)
-  (:use :common-lisp :alexandria :pergamum)
+  (:use :common-lisp :alexandria :iterate :pergamum)
   (:export
    #:allocation-condition #:allocation-error #:simple-allocation-error
-   #:allocate #:release #:with-allocator #:allocate-let #:eval-allocated))
+   #:pool-allocate #:pool-release #:with-allocator #:allocate-let #:eval-allocated #:pool-allocate-lexical
+   #:track-key #:map-tracker-key-references #:tracker-set-key-value-and-finalizer #:tracker-reference-key #:tracker-release-key-and-process-references
+   #:with-tracker #:tracker-let))
 
 (defpackage circular-buffer
   (:nicknames :circbuf)
