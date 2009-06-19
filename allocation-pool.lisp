@@ -133,6 +133,16 @@ FINALIZER must be a function of one argument."
     (setf (cadr binding) (cons value finalizer))
     (allocation-error "~@<Key ~S/~S is not tracked in pool ~S.~:@>" key global-key name)))
 
+(defun tracker-add-key-value-and-finalizer (name key finalizer value)
+  "Add KEY, and set its global FINALIZER and VALUE parameter in the
+tracked pool established by the most recently entered WITH-TRACKER
+form with NAME.
+The VALUE will be passed to the FINALIZER, which might iterate over
+per-reference values using MAP-TRACKER-KEY-REFERENCES.
+FINALIZER must be a function of one argument."
+  (track-key name key)
+  (tracker-set-key-value-and-finalizer name key finalizer value))
+
 (defun tracker-reference-key (name key value &aux
                               (global-key (globalise-tracked-key name key))
                               (tracked-list (format-symbol (symbol-package name) "*TRACKED-~A*" name)))
