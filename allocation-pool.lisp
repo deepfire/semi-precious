@@ -127,7 +127,7 @@ entered WITH-TRACKER form with NAME.
 FN must be a function of three arguments, and it will be provided with
 the key name, its finalizer and the list of references."
   (iter (for (name (global-key finalizer . references)) in (the list (symbol-value tracked-list)))
-        (funcall fn global key finalizer references)))
+        (funcall fn global-key finalizer references)))
 
 (defun tracker-set-key-value-and-finalizer (name key finalizer value &aux
                                             (global-key (globalise-tracked-key name key))
