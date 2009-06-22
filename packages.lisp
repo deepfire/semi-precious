@@ -3,10 +3,13 @@
   (:use :common-lisp :alexandria :iterate :pergamum)
   (:export
    #:allocation-condition #:allocation-error #:simple-allocation-error
-   #:pool-allocate #:pool-release #:with-allocator #:allocate-let #:eval-allocated #:pool-allocate-lexical
-   #:track-key #:map-tracker-key-references #:map-tracked-keys #:tracker-set-key-value-and-finalizer #:tracker-reference-key #:tracker-release-key-and-process-references
-   #:tracker-add-key-value-and-finalizer
-   #:with-tracker #:tracker-let))
+   #:pool-allocate #:pool-release #:with-allocator #:allocate-let #:eval-allocated
+   #:lexical-p #:allocate-lexical-binding #:undo-lexical-binding #:lexical-binding #:set-lexical-binding #:allocate-lexically-bound-global
+   ;; tracker
+   #:with-tracker #:track-key #:map-tracked-keys
+   #:tracker-set-global-key-value-and-finalizer #:tracker-add-global-key-value-and-finalizer #:tracker-release-key-and-process-references
+   ;; tracker lexicals
+   #:tracker-let #:globalise-tracked-key #:map-tracker-key-references #:tracker-set-key-value-and-finalizer #:tracker-reference-key))
 
 (defpackage circular-buffer
   (:nicknames :circbuf)

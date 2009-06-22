@@ -55,6 +55,43 @@ provide access to the NAME'd value allocation pool operating on SET."
        (declare (special ,free-sym ,busy-sym) (type list ,free-sym ,busy-sym))
        ,@body)))
 
+(defun lexical-p (name key &aux
+                  (lexicals-sym (format-symbol (symbol-package name) "*~A-LEXICALS*" name)))
+  "Determine whether KEY refers to a lexically allocated variable
+within the most recently entered ALLOCATE-LET form with NAME."
+  (not (null (assoc key (the list (symbol-value lexicals-sym))))))
+
+(defun allocate-lexical-binding (name key &aux
+                                 (lexicals-sym (format-symbol (symbol-package name) "*~A-LEXICALS*" name)))
+  "Allocate a lexical KEY in the lexical environment established by
+the most recently entered ALLOCATE-LET form with NAME."
+  (if (find key (the list (symbol-value lexicals-sym)) :key #'car)
+      (allocation-error "~@<Lexical key ~S already allocated in env ~S: ~S.~:@>" key name (the list (symbol-value lexicals-sym)))
+      (lret ((lexical-rename (gensym "ALLOCATE-LEXICAL")))
+        (push (cons key lexical-rename) (the list (symbol-value lexicals-sym))))))
+
+(defun undo-lexical-binding (name key &aux
+                             (lexicals-sym (format-symbol (symbol-package name) "*~A-LEXICALS*" name)))
+  "Remove the lexical binding for KEY from the lexical environment
+established by the most recently entered ALLOCATE-LET form with NAME."
+  (if (find key (the list (symbol-value lexicals-sym)) :key #'car)
+      (removef (the list (symbol-value lexicals-sym)) key :key #'car)
+      (allocation-error "~@<Lexical key ~S is not allocated in env ~S: ~S.~:@>" key name (the list (symbol-value lexicals-sym)))))
+
+(defun lexical-binding (name key &aux
+                        (lexicals-sym (format-symbol (symbol-package name) "*~A-LEXICALS*" name)))
+  "Return the value associated with KEY by the most recently entered
+ALLOCATE-LET form with NAME, if any."
+  (cdr (assoc key (the list (symbol-value lexicals-sym)))))
+
+(defun set-lexical-binding (name key value &aux
+                            (lexicals-sym (format-symbol (symbol-package name) "*~A-LEXICALS*" name)))
+  "Set the value associated with KEY by the most recently entered
+ALLOCATE-LET form with NAME, if any."
+  (setf (cdr (assoc key (the list (symbol-value lexicals-sym)))) value))
+
+(defsetf lexical-binding set-lexical-binding)
+
 (defmacro allocate-let ((&optional name &rest bound-set) &body body)
   "Execute BODY within context established by the most recently entered
 WITH-ALLOCATOR form with NAME. The established context is used to determine
@@ -75,33 +112,30 @@ the result of EVAL-ALLOCATED form evaluations."
            (unwind-protect (progn ,@body)
              (mapcar (curry #'pool-release ',name) ,allocation)))))))
 
-(defun pool-allocate-lexical (name key &aux
-                              (free-list (format-symbol (symbol-package name) "*FREE-~AS*" name))
-                              (busy-list (format-symbol (symbol-package name) "*BUSY-~AS*" name))
-                              (lexicals-sym (format-symbol (symbol-package name) "*~A-LEXICALS*" name)))
-  "Allocate a KEY - VALUE pair from the allocatable value pool established by
-the most recently entered WITH-ALLOCATOR form with NAME."
-  (if (find key (the list (symbol-value lexicals-sym)) :key #'car)
-      (allocation-error "~@<Lexical key ~S already allocated in pool ~S: ~S.~:@>" key name (the list (symbol-value lexicals-sym)))
-      (if-let ((free (pop (the list (symbol-value free-list)))))
-        (prog1 free
-          (let ((lexical-rename (gensym "ALLOCATE-LEXICAL")))
-            (push (cons key lexical-rename) (the list (symbol-value lexicals-sym)))
-            (push (cons lexical-rename free) (the list (symbol-value busy-list)))))
-        (allocation-error "~@<Allocation pool ~S has been drained.~:@>" name))))
+(defun allocate-lexically-bound-global (name key)
+  "Allocate a lexical KEY in the the most recently entered ALLOCATE-LET
+lexical pool, and a corresponding backing key from the global allocatable
+value pool established by the most recently entered WITH-ALLOCATOR form
+with NAME."
+  (pool-allocate name (allocate-lexical-binding name key)))
 
-(defun eval-allocated (name allocated &aux
-                       (busy-list (format-symbol (symbol-package name) "*BUSY-~AS*" name))
-                       (lexicals-sym (format-symbol (symbol-package name) "*~A-LEXICALS*" name)))
-  "Evaluate ALLOCATED in the context established by the most recently
-entered WITH-ALLOCATOR form with NAME."
+(defun eval-allocated (name key &aux
+                       (busy-list (format-symbol (symbol-package name) "*BUSY-~AS*" name)))
+  "Evaluate KEY in the context established by the most recently entered
+WITH-ALLOCATOR form with NAME."
   (labels ((eval-cell (key)
              (if-let ((association (assoc key (the list (symbol-value busy-list)))))
                (cdr association)
-               (allocation-error "~@<~A/~A was not allocated in the ~A allocation pool.~:@>" allocated key name)))
-           (eval-maybe-lexical (allocated)
-             (or (cdr (assoc allocated (symbol-value lexicals-sym))) allocated)))
-    (eval-cell (eval-maybe-lexical allocated))))
+               (allocation-error "~@<~A was not allocated in the ~A allocation pool.~:@>" key name))))
+    (eval-cell (or (lexical-binding name key) key))))
+
+(defmacro with-tracker (name &body body)
+  "Execute BODY in a context, where TRACKER-ALLOCATE and TRACKER-RELEASE
+provide access to the NAME'd value tracking pool."
+  (let ((tracked-sym (format-symbol (symbol-package name) "*TRACKED-~A*" name)))
+    `(let ((,tracked-sym nil))
+       (declare (special ,tracked-sym) (type list ,tracked-sym))
+       ,@body)))
 
 (defun track-key (name key &aux
                   (tracked-list (format-symbol (symbol-package name) "*TRACKED-~A*" name)))
@@ -111,38 +145,28 @@ WITH-TRACKER form with NAME."
     (allocation-error "~@<Key ~S is already tracked in pool ~S.~:@>" key name)
     (caar (push (list key nil) (the list (symbol-value tracked-list))))))
 
-(defun map-tracker-key-references (name key fn &aux
-                                   (global-key (globalise-tracked-key name key))
-                                   (tracked-list (format-symbol (symbol-package name) "*TRACKED-~A*" name)))
-  "Map FN over the reference values associated with KEY in the tracker pool
-established by the most recently entered WITH-TRACKER form with NAME."
-  (if-let ((binding (find global-key (the list (symbol-value tracked-list)) :key #'car)))
-    (mapc fn (cddr binding))
-    (allocation-error "~@<Key ~S is not tracked in pool ~S.~:@>" global-key name)))
-
 (defun map-tracked-keys (name fn &aux
                          (tracked-list (format-symbol (symbol-package name) "*TRACKED-~A*" name)))
   "Map FN over the keys tracked in the pool established by the most recently
 entered WITH-TRACKER form with NAME.
 FN must be a function of three arguments, and it will be provided with
-the key name, its finalizer and the list of references."
-  (iter (for (name (global-key finalizer . references)) in (the list (symbol-value tracked-list)))
-        (funcall fn global-key finalizer references)))
+the key name, its value-finalizer pair and the list of references."
+  (iter (for (name (global-key value-finalizer . references)) in (the list (symbol-value tracked-list)))
+        (funcall fn global-key value-finalizer references)))
 
-(defun tracker-set-key-value-and-finalizer (name key finalizer value &aux
-                                            (global-key (globalise-tracked-key name key))
-                                            (tracked-list (format-symbol (symbol-package name) "*TRACKED-~A*" name)))
+(defun tracker-set-global-key-value-and-finalizer (name global-key finalizer value &aux
+                                                   (tracked-list (format-symbol (symbol-package name) "*TRACKED-~A*" name)))
   "Set the global FINALIZER and its VALUE parameter for the value tracked
-at the KEY in the tracked pool established by the most recently entered 
-WITH-TRACKER form with NAME.
+at the GLOBAL-KEY in the tracked pool established by the most recently
+entered WITH-TRACKER form with NAME.
 The VALUE will be passed to the FINALIZER, which might iterate over
 per-reference values using MAP-TRACKER-KEY-REFERENCES.
 FINALIZER must be a function of one argument."
   (if-let ((binding (find global-key (the list (symbol-value tracked-list)) :key #'car)))
     (setf (cadr binding) (cons value finalizer))
-    (allocation-error "~@<Key ~S/~S is not tracked in pool ~S.~:@>" key global-key name)))
+    (allocation-error "~@<Global key ~S is not tracked in pool ~S.~:@>" global-key name)))
 
-(defun tracker-add-key-value-and-finalizer (name key finalizer value)
+(defun tracker-add-global-key-value-and-finalizer (name key finalizer value)
   "Add KEY, and set its global FINALIZER and VALUE parameter in the
 tracked pool established by the most recently entered WITH-TRACKER
 form with NAME.
@@ -150,19 +174,7 @@ The VALUE will be passed to the FINALIZER, which might iterate over
 per-reference values using MAP-TRACKER-KEY-REFERENCES.
 FINALIZER must be a function of one argument."
   (track-key name key)
-  (tracker-set-key-value-and-finalizer name key finalizer value))
-
-(defun tracker-reference-key (name key value &aux
-                              (global-key (globalise-tracked-key name key))
-                              (tracked-list (format-symbol (symbol-package name) "*TRACKED-~A*" name)))
-  "Set the VALUE reference associated with KEY in the tracker pool
-established by the most recently entered WITH-TRACKER form with NAME.
-The VALUE will be accessible in the global finalizer, provided by the
-TRACKER-SET-KEY-VALUE-AND-FINALIZER function in the context of the most
-recently entered WITH-TRACKER form with NAME."
-  (if-let ((binding (find global-key (the list (symbol-value tracked-list)) :key #'car)))
-    (push value (cddr binding))
-    (allocation-error "~@<Key ~S/~S is not tracked in pool ~S.~:@>" key global-key name)))
+  (tracker-set-global-key-value-and-finalizer name key finalizer value))
 
 (defun tracker-release-key-and-process-references (name key &aux
                                                    (tracked-list (format-symbol (symbol-package name) "*TRACKED-~A*" name)))
@@ -175,14 +187,6 @@ global finalizer."
         (funcall finalizer value))
       (removef (the list (symbol-value tracked-list)) key :key #'car))
     (allocation-error "~@<Key ~S is not tracked in the ~A tracker pool.~:@>" key name)))
-
-(defmacro with-tracker (name &body body)
-  "Execute BODY in a context, where TRACKER-ALLOCATE and TRACKER-RELEASE
-provide access to the NAME'd value tracking pool."
-  (let ((tracked-sym (format-symbol (symbol-package name) "*TRACKED-~A*" name)))
-    `(let ((,tracked-sym nil))
-       (declare (special ,tracked-sym) (type list ,tracked-sym))
-       ,@body)))
 
 (defmacro tracker-let ((name &rest keys) &body body)
   "Execute BODY within context established by the most recently entered
@@ -208,4 +212,43 @@ conflict detection and finalization of the tracked keys."
                               (lexicals-sym (format-symbol (symbol-package name) "*TRACKED-~A-LEXICALS*" name)))
   "Evaluate KEY in the context established by the most recently
 entered WITH-ALLOCATOR and TRACKER-LET forms with NAME."
-  (or (cdr (assoc key (symbol-value lexicals-sym))) key))
+  (or (cdr (assoc key (the list (symbol-value lexicals-sym)))) key))
+
+(defun map-tracker-key-references (name key fn &aux
+                                   (global-key (globalise-tracked-key name key))
+                                   (tracked-list (format-symbol (symbol-package name) "*TRACKED-~A*" name)))
+  "Map FN over the reference values associated with KEY in the tracker pool
+established by the most recently entered WITH-TRACKER form with NAME,
+with respect to the lexical key environment, established by the most recently
+entered TRACKER-LET form."
+  (if-let ((binding (find global-key (the list (symbol-value tracked-list)) :key #'car)))
+    (mapc fn (cddr binding))
+    (allocation-error "~@<Key ~S is not tracked in pool ~S.~:@>" global-key name)))
+
+(defun tracker-set-key-value-and-finalizer (name key finalizer value &aux
+                                            (global-key (globalise-tracked-key name key))
+                                            (tracked-list (format-symbol (symbol-package name) "*TRACKED-~A*" name)))
+  "Set the global FINALIZER and its VALUE parameter for the value tracked
+at the KEY in the tracked pool established by the most recently entered 
+WITH-TRACKER form with NAME, with respect to the lexical key environment,
+established by the most recently entered TRACKER-LET form.
+The VALUE will be passed to the FINALIZER, which might iterate over
+per-reference values using MAP-TRACKER-KEY-REFERENCES.
+FINALIZER must be a function of one argument."
+  (if-let ((binding (find global-key (the list (symbol-value tracked-list)) :key #'car)))
+    (setf (cadr binding) (cons value finalizer))
+    (allocation-error "~@<Key ~S/~S is not tracked in pool ~S.~:@>" key global-key name)))
+
+(defun tracker-reference-key (name key value &aux
+                              (global-key (globalise-tracked-key name key))
+                              (tracked-list (format-symbol (symbol-package name) "*TRACKED-~A*" name)))
+  "Set the VALUE reference associated with KEY in the tracker pool
+established by the most recently entered WITH-TRACKER form with NAME, 
+with respect to the lexical key environment, established by the most
+recently entered TRACKER-LET form.
+The VALUE will be accessible in the global finalizer, provided by the
+TRACKER-SET-KEY-VALUE-AND-FINALIZER function in the context of the most
+recently entered WITH-TRACKER form with NAME."
+  (if-let ((binding (find global-key (the list (symbol-value tracked-list)) :key #'car)))
+    (push value (cddr binding))
+    (allocation-error "~@<Key ~S/~S is not tracked in pool ~S.~:@>" key global-key name)))
