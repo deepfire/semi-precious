@@ -23,7 +23,7 @@
 (defclass tracker-environment (hash-table-environment) ())
 (defclass top-level-tracker-environment (top-level-environment tracker-environment) ())
 
-(defun make-tracker ()
+(defun make-top-level-tracker ()
   (make-instance 'top-level-tracker-environment))
 
 (defmethod bind :around ((o tracker-environment) (name symbol) value)

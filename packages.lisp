@@ -18,12 +18,14 @@
    #:pool-environment #:top-level-pool-environment
    #:allocation-condition #:allocation-error #:simple-allocation-error
    #:env-freelist
-   #:make-top-level-pool #:allocate #:release #:with-pool-allocation #:pool-let #:pool-allocate-lexical))
+   #:make-top-level-pool
+   #:allocate #:release #:with-pool-allocation #:pool-let #:pool-allocate-lexical))
 
 (defpackage #:tracker
   (:use :common-lisp :alexandria :iterate :pergamum :environment)
   (:export
    #:tracker-environment #:top-level-tracker-environment
+   #:make-top-level-tracker
    #:map-tracked-keys #:tracker-set-global-key-value-and-finalizer #:tracker-add-global-key-value-and-finalizer #:tracker-release-key-and-process-references
    #:tracker-let #:map-tracker-key-references #:tracker-set-key-value-and-finalizer #:tracker-reference-key))
 
