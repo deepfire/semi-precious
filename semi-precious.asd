@@ -12,7 +12,7 @@
   :components
   ((:file "packages")
 ;;;
-   (:file "allocation-pool" :depends-on ("packages"))
+   (:file "environment" :depends-on ("packages"))
    (:file "depsolver" :depends-on ("packages"))
    (:file "discrimination" :depends-on ("packages"))
    (:file "octree-1d" :depends-on ("packages"))
@@ -20,4 +20,7 @@
    (:file "state" :depends-on ("packages"))
    (:file "circular" :depends-on ("packages"))
    (:file "early-eval" :depends-on ("packages"))
-   (:file "meta" :depends-on ("packages"))))
+   (:file "meta" :depends-on ("packages"))
+;;;
+   (:file "allocation-pool" :depends-on ("environment"))
+   (:file "tracker" :depends-on ("environment"))))
