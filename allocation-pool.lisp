@@ -20,37 +20,90 @@
 
 (in-package :allocation-pool)
 
+(define-condition environment-condition (condition) 
+  ((env :accessor condition-env :initarg :env)))
+(define-condition environment-error (environment-condition error) ())
+(define-reported-condition environment-name-not-bound (environment-condition cell-error) ()
+  (:report (env name) "~@<Name ~A not bound in ~A~:@>" name env))
+(define-reported-condition environment-value-not-bound (environment-condition cell-error) ()
+  (:report (env name) "~@<Value ~A not bound in ~A~:@>" name env))
+
 (define-condition allocation-condition (condition) ())
 (define-condition allocation-error (allocation-condition error) ())
 (define-simple-error allocation-error)
 
-(defun pool-allocate (name key &aux
-                      (free-list (format-symbol (symbol-package name) "*FREE-~AS*" name))
-                      (busy-list (format-symbol (symbol-package name) "*BUSY-~AS*" name)))
+(defclass environment ()
+  ((mapping :accessor env-mapping :type hash-table :initarg :mapping))
+  (:default-initargs :mapping (make-hash-table :test 'eq)))
+
+(defclass total-environment (environment)
+  ((reverse-mapping :accessor env-reverse-mapping :type hash-table :initarg :reverse-mapping))
+  (:default-initargs :reverse-mapping (make-hash-table :test 'equal)))
+
+(defclass allocation-pool (total-environment)
+  ((freelist :accessor pool-freelist :type list :initarg :freelist))
+  (:default-initargs :freelist nil))
+
+(defclass lexical-environment (environment)
+  ((parent :accessor lexenv-parent :initarg :parent)))
+
+(defgeneric bind (environment name value)
+  (:method ((o environment) (name symbol) value)
+    (setf (gethash name (env-mapping o)) value))
+  (:method :after ((o total-environment) (name symbol) value)
+    (setf (gethash value (env-reverse-mapping o)) name)))
+
+(defgeneric unbind (environment name)
+  (:method :around ((o environment) (name symbol))
+    (unless (nth-value 1 (gethash name (env-mapping o)))
+      (error 'environment-name-not-bound :env o :name name)))
+  (:method ((o environment) (name symbol))
+    (remhash name (env-mapping o)))
+  (:method :before ((o total-environment) (name symbol))
+    (remhash (gethash name (env-reverse-mapping o)) (env-mapping o))))
+
+(defgeneric unbind-by-value (environment value)
+  (:method :around ((o total-environment) (value symbol))
+    (unless (nth-value 1 (gethash value (env-reverse-mapping o)))
+      (error 'environment-name-not-bound :env o :name value)))
+  (:method ((o total-environment) value)
+    (let ((name (gethash value (env-reverse-mapping o))))
+      (remhash name (env-mapping o))
+      (remhash value (env-reverse-mapping o)))))
+
+(defgeneric value (environment name)
+  (:method :around ((o environment) (name symbol))
+    (unless (nth-value 1 (gethash name (env-mapping o)))
+      (error 'environment-name-not-bound :env o :name name)))
+  (:method ((o environment) (name symbol))
+    (gethash name (env-mapping o))))
+
+(defgeneric name (environment value)
+  (:method :around ((o total-environment) (value symbol))
+    (unless (nth-value 1 (gethash value (env-reverse-mapping o)))
+      (error 'environment-name-not-bound :env o :name value)))
+  (:method ((o total-environment) value)
+    (gethash value (env-reverse-mapping o))))
+
+(defun pool-allocate (env key)
   "Allocate a KEY - VALUE pair from the allocatable value pool established by
 the most recently entered WITH-ALLOCATOR form with NAME."
-  (if-let ((free (pop (the list (symbol-value free-list)))))
+  (if-let ((free (pop (the list (pool-freelist env)))))
     (prog1 free
-      (push (cons key free) (the list (symbol-value busy-list))))
+      (bind env key free))
     (allocation-error "~@<Allocation pool ~S has been drained.~:@>" name)))
 
-(defun pool-release (name value &aux
-                     (free-list (format-symbol (symbol-package name) "*FREE-~AS*" name))
-                     (busy-list (format-symbol (symbol-package name) "*BUSY-~AS*" name)))
+(defun pool-release (env value)
   "Release the VALUE back into the allocatable value pool established by 
 the most recently entered WITH-ALLOCATOR form with NAME."
-  (if (member value (the list (symbol-value busy-list)) :key #'cdr)
-      (progn
-        (push value (the list (symbol-value free-list)))
-        (removef (the list (symbol-value busy-list)) value :key #'cdr))
-      (allocation-error "~@<~S was not allocated in the ~A allocation pool.~:@>" value name)))
+  (unbind-by-value env value)
+  (push value (the list (pool-freelist env))))
 
-(defun allocated-environment (name &aux
-                              (busy-list (format-symbol (symbol-package name) "*BUSY-~AS*" name)))
+(defun allocated-environment (env)
   "Return the accumulated environment at the point of call, for the
 allocatable value pool established by the most recently entered
 WITH-ALLOCATOR form with NAME, as an association list."
-  (copy-list (the list (symbol-value busy-list))))
+  (hash-table-alist (env-mapping env)))
 
 (defmacro with-allocator ((name set) &body body)
   "Execute BODY in a context, where POOL-ALLOCATE, POOL-RELEASE and EVAL-ALLOCATABLE
