@@ -45,6 +45,13 @@ the most recently entered WITH-ALLOCATOR form with NAME."
         (removef (the list (symbol-value busy-list)) value :key #'cdr))
       (allocation-error "~@<~S was not allocated in the ~A allocation pool.~:@>" value name)))
 
+(defun allocated-environment (name &aux
+                              (busy-list (format-symbol (symbol-package name) "*BUSY-~AS*" name)))
+  "Return the accumulated environment at the point of call, for the
+allocatable value pool established by the most recently entered
+WITH-ALLOCATOR form with NAME, as an association list."
+  (copy-list (the list (symbol-value busy-list))))
+
 (defmacro with-allocator ((name set) &body body)
   "Execute BODY in a context, where POOL-ALLOCATE, POOL-RELEASE and EVAL-ALLOCATABLE
 provide access to the NAME'd value allocation pool operating on SET."

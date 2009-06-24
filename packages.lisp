@@ -3,7 +3,7 @@
   (:use :common-lisp :alexandria :iterate :pergamum)
   (:export
    #:allocation-condition #:allocation-error #:simple-allocation-error
-   #:pool-allocate #:pool-release #:with-allocator #:allocate-let #:eval-allocated
+   #:pool-allocate #:pool-release #:allocated-environment #:with-allocator #:allocate-let #:eval-allocated
    #:lexical-p #:allocate-lexical-binding #:undo-lexical-binding #:lexical-binding #:set-lexical-binding #:allocate-lexically-bound-global
    ;; tracker
    #:with-tracker #:track-key #:map-tracked-keys
