@@ -59,7 +59,7 @@
            (mapcar (curry #'unbind-by-value ,pool) ,allocation)
            (setf (the list (env-freelist ,pool)) ,pre-alloc-freelist))))))
 
-(defmacro pool-let ((env &rest bound-set) &body body)
+(defmacro with-pool-subset ((env &rest bound-set) &body body)
   "Execute BODY within context established by the most recently entered
 WITH-ALLOCATOR form with NAME. The established context is used to determine
 the result of EVAL-ALLOCATED form evaluations."

@@ -67,7 +67,7 @@ global finalizer."
       (funcall finalizer value))
     (unbind env global-key)))
 
-(defmacro tracker-let ((env &rest bound-set) &body body)
+(defmacro with-tracked-set ((env &rest bound-set) &body body)
   "Execute BODY within context established by the most recently entered
 WITH-ALLOCATOR form with NAME. The established context is used to determine
 the result of EVAL-ALLOCATED form evaluations."
