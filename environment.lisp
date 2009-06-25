@@ -120,6 +120,16 @@
   (:method ((o hash-table-environment))
     (hash-table-alist (env-mapping o))))
 
+(defgeneric copy-environment (to from)
+  (:method ((to alist-environment) (from alist-environment))
+    (setf (env-mapping to) (copy-alist (env-mapping from))))
+  (:method ((to hash-table-environment) (from hash-table-environment))
+    (setf (env-mapping to) (copy-hash-table (env-mapping from))))
+  (:method :after ((to top-level-environment) (from top-level-environment))
+    (setf (env-lexical-frames to) (mapcar #'copy-environment (env-lexical-frames from))))
+  (:method :after ((to reverse-environment) (from reverse-environment))
+    (setf (env-reverse-mapping to) (copy-hash-table (env-reverse-mapping from)))))
+
 ;;;
 ;;; Top-level environment
 ;;;
