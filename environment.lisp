@@ -53,11 +53,11 @@
 (define-condition environment-error (environment-condition error) ())
 (define-simple-error environment-error)
 (define-reported-condition environment-name-already-bound (environment-condition cell-error) ()
-  (:report (env name) "~@<Name ~A already bound in ~A~:@>" name env))
+  (:report (env #+sbcl sb-kernel::name #+ecl si::name) "~@<Name ~A already bound in ~A~:@>" #+sbcl sb-kernel::name #+ecl si::name env))
 (define-reported-condition environment-name-not-bound (environment-condition cell-error) ()
-  (:report (env name) "~@<Name ~A not bound in ~A~:@>" name env))
+  (:report (env #+sbcl sb-kernel::name #+ecl si::name) "~@<Name ~A not bound in ~A~:@>" #+sbcl sb-kernel::name #+ecl si::name env))
 (define-reported-condition environment-value-not-bound (environment-condition cell-error) ()
-  (:report (env name) "~@<Value ~A not bound in ~A~:@>" name env))
+  (:report (env #+sbcl sb-kernel::name #+ecl si::name) "~@<Value ~A not bound in ~A~:@>" #+sbcl sb-kernel::name #+ecl si::name env))
 
 ;;;
 ;;; Generic
