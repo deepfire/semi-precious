@@ -92,7 +92,7 @@
   (:method ((o environment) (name symbol))
     (do-unbind o name)))
 
-(defgeneric value (environment name)
+(defgeneric lookup-value (environment name)
   (:method :around ((o environment) (name symbol))
     (if (name-bound-p o name)
         (call-next-method)
@@ -112,7 +112,7 @@
   (:method ((o hash-table-environment) (name symbol) value)
     (setf (gethash name (env-mapping o)) value)))
 
-(defsetf value set-value)
+(defsetf lookup-value set-value)
 
 (defgeneric env-alist (environment)
   (:method ((o alist-environment))
@@ -135,7 +135,7 @@
 ;;;
 (defgeneric evaluate (environment name)
   (:method ((o top-level-environment) (name symbol))
-    (value o (if (name-lexical-p o name) (lexical o name) name))))
+    (lookup-value o (if (name-lexical-p o name) (lexical o name) name))))
 
 ;;;
 ;;; Reverse-mapped access
@@ -165,7 +165,7 @@
       (remhash name (env-mapping o))
       (remhash value (env-reverse-mapping o)))))
 
-(defgeneric name (environment value)
+(defgeneric lookup-name (environment value)
   (:method :around ((o reverse-environment) (value symbol))
     (unless (nth-value 1 (gethash value (env-reverse-mapping o)))
       (error 'environment-name-not-bound :env o :name value)))
@@ -194,7 +194,7 @@
 
 (defun find-environment (name)
   (declare (special *metaenv*))
-  (value *metaenv* name))
+  (lookup-value *metaenv* name))
 
 (defmacro with-environment ((name environment) &body body)
   (with-gensyms (old-environment-alist)
@@ -239,7 +239,7 @@
 (defgeneric lexical (env name)
   (:method ((o top-level-environment) (name symbol))
     (if-let ((lex-frame (first (env-lexical-frames o))))
-      (value lex-frame name)
+      (lookup-value lex-frame name)
       (environment-error "~@<Cannot evaluate a lexical with no lexical frame established.~:@>"))))
 
 (defgeneric set-lexical (env name value)

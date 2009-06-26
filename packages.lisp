@@ -5,9 +5,9 @@
    #:environment #:alist-environment #:hash-table-environment #:meta-environment #:top-level-environment #:reverse-environment #:lexical-environment
    #:env-mapping #:env-lexical-frames #:env-reverse-mapping
    #:environment-condition #:environment-error #:simple-environment-error #:environment-name-already-bound #:environment-name-not-bound #:environment-value-not-bound
-   #:bind #:name-bound-p #:do-unbind #:unbind #:value #:set-value #:env-alist #:copy-environment
+   #:bind #:name-bound-p #:do-unbind #:unbind #:lookup-value #:set-value #:env-alist #:copy-environment
    #:evaluate
-   #:unbind-by-value #:name
+   #:unbind-by-value #:lookup-name
    #:with-metaenvironment #:establish-environment #:release-environment #:find-environment #:with-environment
    #:name-lexical-p #:with-fresh-lexical-frame #:allocate-lexical #:undo-lexical #:lexical #:set-lexical #:with-lexical-frame-bindings #:allocate-lexical-binding))
 

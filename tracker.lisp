@@ -46,7 +46,7 @@ entered WITH-TRACKER form with NAME.
 The VALUE will be passed to the FINALIZER, which might iterate over
 per-reference values using MAP-TRACKER-KEY-REFERENCES.
 FINALIZER must be a function of one argument."
-  (setf (value env global-key) (list value finalizer)))
+  (setf (lookup-value env global-key) (list value finalizer)))
 
 (defun tracker-add-global-key-value-and-finalizer (env global-key finalizer value)
   "Add KEY, and set its global FINALIZER and VALUE parameter in the
@@ -61,7 +61,7 @@ FINALIZER must be a function of one argument."
   "Release the KEY back into the tracker pool established by the most
 recently entered WITH-TRACKER form with NAME, and call the associated
 global finalizer."
-  (destructuring-bind (value finalizer &rest references) (value env global-key)
+  (destructuring-bind (value finalizer &rest references) (lookup-value env global-key)
     (declare (ignore references))
     (when finalizer
       (funcall finalizer value))
