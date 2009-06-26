@@ -21,14 +21,6 @@
    #:make-top-level-pool
    #:allocate #:release #:with-pool-allocation #:with-pool-subset #:pool-allocate-lexical))
 
-(defpackage #:tracker
-  (:use :common-lisp :alexandria :iterate :pergamum :environment)
-  (:export
-   #:tracker-environment #:top-level-tracker-environment
-   #:make-top-level-tracker
-   #:map-tracked-keys #:tracker-set-global-key-value-and-finalizer #:tracker-add-global-key-value-and-finalizer #:tracker-release-key-and-process-references
-   #:with-tracked-set #:map-tracker-key-references #:tracker-set-key-value-and-finalizer #:tracker-reference-key))
-
 (defpackage #:circular-buffer
   (:nicknames :circbuf)
   (:use :common-lisp :iterate :alexandria)

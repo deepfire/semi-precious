@@ -22,5 +22,4 @@
    (:file "early-eval" :depends-on ("packages"))
    (:file "meta" :depends-on ("packages"))
 ;;;
-   (:file "allocation-pool" :depends-on ("environment"))
-   (:file "tracker" :depends-on ("environment"))))
+   (:file "allocation-pool" :depends-on ("environment"))))
