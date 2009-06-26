@@ -266,7 +266,7 @@ determine the result of EVAL-ALLOCATED form evaluations."
       (when-let ((unknown-vars (set-difference special-vars bound-set)))
         (environment-error "~@<Unknown variables were declared special: ~S~:@>~%" unknown-vars))
       `(with-fresh-lexical-frame ,env
-         (let* ((,specials ',specials)
+         (let* ((,specials ',special-vars)
                 (,lexical-renames ',(make-gensym-list (length lexical-vars) "LEXICAL-LET")))
            (mapcar (curry #'set-lexical ,env) ',lexical-vars ,lexical-renames)
            ,@body)))))
