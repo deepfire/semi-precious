@@ -191,16 +191,13 @@
 
 (defgeneric establish-environment (name environment)
   (:method ((name symbol) (env environment))
-    (declare (special *metaenv*))
     (bind *metaenv* name env)))
 
 (defgeneric release-environment (environment)
   (:method ((o environment))
-    (declare (special *metaenv*))
     (unbind-by-value *metaenv* o)))
 
 (defun find-environment (name)
-  (declare (special *metaenv*))
   (lookup-value *metaenv* name))
 
 (defmacro with-environment ((name environment) &body body)
