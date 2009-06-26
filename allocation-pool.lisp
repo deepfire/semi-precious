@@ -63,11 +63,13 @@
   "Execute BODY within context established by the most recently entered
 WITH-ALLOCATOR form with NAME. The established context is used to determine
 the result of EVAL-ALLOCATED form evaluations."
-  (with-gensyms (specials lexical-renames)
-    (once-only (env)
-      `(with-lexical-frame-bindings (,env ,@bound-set) (,specials ,lexical-renames)
-         (with-pool-allocation (,env (append ,specials ,lexical-renames))
-           ,@body)))))
+  (multiple-value-bind (decls body) (destructure-binding-form-body body)
+    (with-gensyms (specials lexical-renames)
+      (once-only (env)
+        `(with-lexical-frame-bindings (,env ,@bound-set) (,specials ,lexical-renames)
+           ,@(when decls `((declare ,@decls)))
+           (with-pool-allocation (,env (append ,specials ,lexical-renames))
+             ,@body))))))
 
 (defun pool-allocate-lexical (env name)
   "Allocate a lexical NAME in the the most recently entered ALLOCATE-LET
