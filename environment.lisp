@@ -120,6 +120,13 @@
   (:method ((o hash-table-environment))
     (hash-table-alist (env-mapping o))))
 
+(defgeneric map-environment (environment fn)
+  (:method ((o alist-environment) (fn function))
+    (dolist (assoc (env-mapping o))
+      (funcall fn (car assoc) (cdr assoc))))
+  (:method ((o hash-table-environment) (fn function))
+    (maphash fn (env-mapping o))))
+
 (defgeneric copy-environment (to from)
   (:method ((to alist-environment) (from alist-environment))
     (setf (env-mapping to) (copy-alist (env-mapping from))))
