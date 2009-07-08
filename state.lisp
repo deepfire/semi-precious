@@ -75,7 +75,7 @@
 (defun state (machine)
   (machine-current machine))
 
-(defun (setf state) (to machine)
+(defun (setf state) (to machine &optional transition-args)
   (let ((cur (machine-current machine)))
     (unless (eq cur to)
       (let ((from cur)
@@ -83,8 +83,8 @@
 	(unless path
 	  (error "Unable to find path from ~S to ~S." from to))
 	(dolist (state path)
-	  (funcall (cdr state) (machine-parameter machine))
-	  (funcall (machine-change-fn machine) from (car state))
+	  (apply (cdr state) (machine-parameter machine) transition-args)
+	  (apply (machine-change-fn machine) from (car state) transition-args)
 	  (setf (machine-current machine) (car state)
 		from (car state))))))
   to)
