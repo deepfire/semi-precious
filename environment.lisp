@@ -34,16 +34,16 @@
 (defclass meta-environment (alist-environment)
   ())
 
-(defclass top-level-environment (hash-table-environment)
-  ((lexical-frames :accessor env-lexical-frames :type list :initarg :lexical-frames))
+(defclass dynamic-environment (hash-table-environment)
+  ((dynamic-frames :accessor env-dynamic-frames :type list :initarg :dynamic-frames))
   (:default-initargs
-   :lexical-frames nil))
+   :dynamic-frames nil))
 
 (defclass reverse-environment (hash-table-environment)
   ((reverse-mapping :accessor env-reverse-mapping :type hash-table :initarg :reverse-mapping))
   (:default-initargs :reverse-mapping (make-hash-table :test 'equal)))
 
-(defclass lexical-environment (alist-environment) ())
+(defclass dynamic-environment (alist-environment) ())
 
 ;;;
 ;;; Conditions
@@ -132,17 +132,10 @@
     (setf (env-mapping to) (copy-alist (env-mapping from))))
   (:method ((to hash-table-environment) (from hash-table-environment))
     (setf (env-mapping to) (copy-hash-table (env-mapping from))))
-  (:method :after ((to top-level-environment) (from top-level-environment))
-    (setf (env-lexical-frames to) (mapcar #'copy-environment (env-lexical-frames from))))
+  (:method :after ((to dynamic-environment) (from dynamic-environment))
+    (setf (env-dynamic-frames to) (mapcar #'copy-environment (env-dynamic-frames from))))
   (:method :after ((to reverse-environment) (from reverse-environment))
     (setf (env-reverse-mapping to) (copy-hash-table (env-reverse-mapping from)))))
-
-;;;
-;;; Top-level environment
-;;;
-(defgeneric evaluate (environment name)
-  (:method ((o top-level-environment) (name symbol))
-    (lookup-value o (if (name-lexical-p o name) (lexical o name) name))))
 
 ;;;
 ;;; Reverse-mapped access
@@ -211,64 +204,71 @@
            (setf (env-mapping *metaenv*) ,old-environment-alist))))))
 
 ;;;
-;;; Lexicals
+;;; Dynamic environment
 ;;;
-(defgeneric name-lexical-p (env name)
-  (:method ((o top-level-environment) (name symbol))
-    (when-let ((lex-frame (first (env-lexical-frames o))))
-      (name-bound-p lex-frame name))))
-
-(defmacro with-fresh-lexical-frame (env &body body)
-  (with-gensyms (old-lexical-frame-list new-lexical-frame)
+(defmacro with-fresh-dynamic-frame (env &body body)
+  (with-gensyms (old-dynamic-frame-list new-dynamic-frame)
     (once-only (env)
-      `(let ((,old-lexical-frame-list (env-lexical-frames ,env)))
+      `(let ((,old-dynamic-frame-list (env-dynamic-frames ,env)))
          (unwind-protect
-              (let ((,new-lexical-frame (make-instance 'lexical-environment)))
-                (push ,new-lexical-frame (env-lexical-frames ,env))
+              (let ((,new-dynamic-frame (make-instance 'dynamic-environment)))
+                (push ,new-dynamic-frame (env-dynamic-frames ,env))
                 ,@body)
-           (setf (env-lexical-frames ,env) ,old-lexical-frame-list))))))
+           (setf (env-dynamic-frames ,env) ,old-dynamic-frame-list))))))
 
-(defgeneric allocate-lexical (env name)
-  (:method ((o top-level-environment) (name symbol))
-    (if-let ((lex-frame (first (env-lexical-frames o))))
-      (bind lex-frame name nil)
-      (environment-error "~@<Cannot allocate with no lexical frame established.~:@>"))))
+(defgeneric find-dynamic-frame (env name)
+  (:method ((o dynamic-environment) (name symbol))
+    (find name (env-dynamic-frames o) :key (order name-bound-p 1 0))))
 
-(defgeneric undo-lexical (env name)
-  (:method ((o top-level-environment) (name symbol))
-    (if-let ((lex-frame (first (env-lexical-frames o))))
-      (unbind lex-frame name)
-      (environment-error "~@<Cannot undo a lexical with no lexical frame established.~:@>"))))
+(defgeneric name-dynamic-p (environment name)
+  (:method ((o dynamic-environment) (name symbol))
+    (not (null (find-dynamic-frame o name)))))
 
-(defgeneric lexical (env name)
-  (:method ((o top-level-environment) (name symbol))
-    (if-let ((lex-frame (first (env-lexical-frames o))))
-      (lookup-value lex-frame name)
-      (environment-error "~@<Cannot evaluate a lexical with no lexical frame established.~:@>"))))
+(defgeneric evaluate-dynamic (env name)
+  (:method ((o dynamic-environment) (name symbol))
+    (lookup-value (or (find-dynamic-frame o name) o) name)))
 
-(defgeneric set-lexical (env name value)
-  (:method ((o top-level-environment) (name symbol) value)
-    (if-let ((lex-frame (first (env-lexical-frames o))))
-      (bind lex-frame name value)
-      (environment-error "~@<Cannot set a lexical with no lexical frame established.~:@>"))))
+(defgeneric dynamic (env name)
+  (:method ((o dynamic-environment) (name symbol))
+    (if-let ((dyn-frame (first (env-dynamic-frames o))))
+      (lookup-value dyn-frame name)
+      (environment-error "~@<Cannot look up a dynamic with no dynamic frame established.~:@>"))))
 
-(defsetf lexical set-lexical)
+(defgeneric set-dynamic (env name value)
+  (:method ((o dynamic-environment) (name symbol) value)
+    (if-let ((dyn-frame (first (env-dynamic-frames o))))
+      (bind dyn-frame name nil)
+      (environment-error "~@<Cannot bind a dynamic with no dynamic frame established.~:@>"))))
 
-(defmacro with-lexical-frame-bindings ((env &rest bound-set) (specials lexical-renames) &body body)
+(defsetf dynamic set-dynamic)
+
+(defgeneric allocate-dynamic (env name)
+  (:method ((o dynamic-environment) (name symbol))
+    (if-let ((dyn-frame (first (env-dynamic-frames o))))
+      (bind dyn-frame name nil)
+      (environment-error "~@<Cannot allocate with no dynamic frame established.~:@>"))))
+
+(defgeneric undo-dynamic (env name)
+  (:method ((o dynamic-environment) (name symbol))
+    (if-let ((dyn-frame (first (env-dynamic-frames o))))
+      (unbind dyn-frame name)
+      (environment-error "~@<Cannot undo a dynamic with no dynamic frame established.~:@>"))))
+
+(defmacro with-dynamic-frame-bindings ((env &rest bound-set) (specials dynamic-renames) &body body)
   "Execute BODY within context established by ENV, which is used to
 determine the result of EVAL-ALLOCATED form evaluations."
   (multiple-value-bind (decls body) (destructure-binding-form-body body)
     (let* ((special-vars (apply #'append (mapcar #'rest (remove 'special decls :key #'car :test-not #'eq))))
-           (lexical-vars (set-difference bound-set special-vars)))
+           (dynamic-vars (set-difference bound-set special-vars)))
       (when-let ((unknown-vars (set-difference special-vars bound-set)))
         (environment-error "~@<Unknown variables were declared special: ~S~:@>~%" unknown-vars))
-      `(with-fresh-lexical-frame ,env
+      `(with-fresh-dynamic-frame ,env
          (let* ((,specials ',special-vars)
-                (,lexical-renames ',(make-gensym-list (length lexical-vars) "LEXICAL-LET")))
-           (mapcar (curry #'set-lexical ,env) ',lexical-vars ,lexical-renames)
+                (,dynamic-renames ',(make-gensym-list (length dynamic-vars) "DYNAMIC-LET")))
+           (mapcar (curry #'set-dynamic ,env) ',dynamic-vars ,dynamic-renames)
            ,@body)))))
 
-(defgeneric allocate-lexical-binding (env name)
-  (:method ((o top-level-environment) (name symbol))
-    (lret ((rename (gensym "ALLOC-LEX-BIND")))
-      (set-lexical o name rename))))
+(defgeneric allocate-dynamic-binding (env name)
+  (:method ((o dynamic-environment) (name symbol))
+    (lret ((rename (gensym "ALLOC-DYN-BIND")))
+      (set-dynamic o name rename))))

@@ -24,14 +24,14 @@
   ((freelist :accessor env-freelist :type list :initarg :freelist))
   (:default-initargs :freelist nil))
 
-(defclass top-level-pool-environment (top-level-environment pool-environment) ())
+(defclass dynamic-pool-environment (dynamic-environment pool-environment) ())
 
 (define-condition allocation-condition (condition) ())
 (define-condition allocation-error (allocation-condition error) ())
 (define-simple-error allocation-error)
 
-(defun make-top-level-pool (set)
-  (make-instance 'top-level-pool-environment :freelist set))
+(defun make-dynamic-pool (set)
+  (make-instance 'dynamic-pool-environment :freelist set))
 
 (defgeneric allocate (env name)
   (:method ((o pool-environment) name)
@@ -64,16 +64,16 @@
 WITH-ALLOCATOR form with NAME. The established context is used to determine
 the result of EVAL-ALLOCATED form evaluations."
   (multiple-value-bind (decls body) (destructure-binding-form-body body)
-    (with-gensyms (specials lexical-renames)
+    (with-gensyms (specials dynamic-renames)
       (once-only (env)
-        `(with-lexical-frame-bindings (,env ,@bound-set) (,specials ,lexical-renames)
+        `(with-dynamic-frame-bindings (,env ,@bound-set) (,specials ,dynamic-renames)
            ,@(when decls `((declare ,@decls)))
-           (with-pool-allocation (,env (append ,specials ,lexical-renames))
+           (with-pool-allocation (,env (append ,specials ,dynamic-renames))
              ,@body))))))
 
-(defun pool-allocate-lexical (env name)
-  "Allocate a lexical NAME in the the most recently entered ALLOCATE-LET
-lexical pool, and a corresponding backing key from the global allocatable
+(defun pool-allocate-dynamic (env name)
+  "Allocate a dynamic NAME in the the most recently entered ALLOCATE-LET
+dynamic pool, and a corresponding backing key from the global allocatable
 value pool established by the most recently entered WITH-ALLOCATOR form
 with NAME."
-  (allocate env (allocate-lexical-binding env name)))
+  (allocate env (allocate-dynamic-binding env name)))
