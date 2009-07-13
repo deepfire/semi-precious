@@ -20,28 +20,30 @@
 
 (in-package :allocation-pool)
 
-(defclass pool-environment (reverse-environment)
+;;;
+;;; Generic pool
+;;;
+(defclass pool (reverse-environment)
   ((freelist :accessor env-freelist :type list :initarg :freelist))
   (:default-initargs :freelist nil))
-
-(defclass dynamic-pool-environment (dynamic-environment pool-environment) ())
 
 (define-condition allocation-condition (condition) ())
 (define-condition allocation-error (allocation-condition error) ())
 (define-simple-error allocation-error)
 
-(defun make-dynamic-pool (set)
-  (make-instance 'dynamic-pool-environment :freelist set))
+(defun make-pool (set)
+  "Pretending someone needs that?"
+  (make-instance 'pool :freelist set))
 
-(defgeneric allocate (env name)
-  (:method ((o pool-environment) name)
+(defgeneric pool-allocate (env name)
+  (:method ((o pool) name)
     (if-let ((free (pop (the list (env-freelist o)))))
       (prog1 free
         (bind o name free))
       (allocation-error "~@<~S has been drained.~:@>" o))))
 
-(defgeneric release (env value)
-  (:method ((o pool-environment) value)
+(defgeneric pool-release (env value)
+  (:method ((o pool) value)
     (unbind-by-value o value)
     (push value (the list (env-freelist o)))))
 
@@ -54,26 +56,48 @@
            (allocation-error "~@<Not enough free elements in ~S to satisfy allocation request for ~S elements.~:@>" ,pool ,count))
          (unwind-protect
               (progn
-                (mapc (curry #'allocate ,pool) ,allocation) 
+                (mapc (curry #'pool-allocate ,pool) ,allocation) 
                 ,@body)
-           (mapcar (curry #'unbind-by-value ,pool) ,allocation)
+           (mapcar (curry #'unbind ,pool) ,allocation)
            (setf (the list (env-freelist ,pool)) ,pre-alloc-freelist))))))
+
+;;;
+;;; Pool-backed frame chain
+;;;
+(defclass pool-backed-frame-chain (frame-chain)
+  ((pool :accessor env-pool :type pool :initarg :pool)))
+
+(defun make-pool-backed-frame-chain (set)
+  (make-instance 'pool-backed-frame-chain :pool (make-pool set)))
+
+(defgeneric pool-evaluate (env name)
+  (:method ((o pool-backed-frame-chain) (name symbol))
+    (lookup (env-pool o) (if-let ((frame (find-frame o name)))
+                           (lookup frame name)
+                           name))))
 
 (defmacro with-pool-subset ((env &rest bound-set) &body body)
   "Execute BODY within context established by the most recently entered
 WITH-ALLOCATOR form with NAME. The established context is used to determine
 the result of EVAL-ALLOCATED form evaluations."
   (multiple-value-bind (decls body) (destructure-binding-form-body body)
-    (with-gensyms (specials dynamic-renames)
-      (once-only (env)
-        `(with-dynamic-frame-bindings (,env ,@bound-set) (,specials ,dynamic-renames)
-           ,@(when decls `((declare ,@decls)))
-           (with-pool-allocation (,env (append ,specials ,dynamic-renames))
-             ,@body))))))
+    (let* ((special-vars (apply #'append (mapcar #'rest (remove 'special decls :key #'car :test-not #'eq))))
+           (ordinary-vars (set-difference bound-set special-vars)))
+      (when-let ((unknown-vars (set-difference special-vars bound-set)))
+        (environment-error "~@<Unknown variables were declared special: ~S~:@>~%" unknown-vars))
+      (with-gensyms (bottom-frame specials renames)
+        (once-only (env)
+          `(with-fresh-frame (,env ,bottom-frame)
+             (let* ((,specials ',special-vars)
+                    (,renames ',(make-gensym-list (length ordinary-vars) "W-P-F-B")))
+               (with-pool-allocation ((env-pool ,env) (append ,specials ,renames))
+                 (mapcar (curry #'bind ,bottom-frame) ',ordinary-vars ,renames)
+                 ,@body))))))))
 
-(defun pool-allocate-dynamic (env name)
-  "Allocate a dynamic NAME in the the most recently entered ALLOCATE-LET
-dynamic pool, and a corresponding backing key from the global allocatable
-value pool established by the most recently entered WITH-ALLOCATOR form
-with NAME."
-  (allocate env (allocate-dynamic-binding env name)))
+(defun pool-allocate-binding (pool-env name)
+  "Bind NAME to a freshly allocated POOL-ENV element in the the
+most recently established POOL-ENV's frame."
+  (let ((rename (gensym "POOL-ALLOC-BIND")))
+    (values (prog1 (pool-allocate (env-pool pool-env) rename)
+              (bind (bottom-frame pool-env) name rename))
+            rename)))
