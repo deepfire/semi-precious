@@ -72,9 +72,9 @@
 
 (defgeneric pool-evaluate (env name)
   (:method ((o pool-backed-frame-chain) (name symbol))
-    (lookup (env-pool o) (if-let ((frame (find-frame o name)))
-                           (lookup frame name)
-                           name))))
+    (do-lookup (env-pool o) (if-let ((frame (find-frame o name)))
+                              (lookup frame name)
+                              name))))
 
 (defmacro with-pool-subset ((env &rest bound-set) &body body)
   "Execute BODY within context established by the most recently entered
