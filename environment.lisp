@@ -154,14 +154,14 @@
   (:method ((to hash-table-environment) (from hash-table-environment))
     (setf (env-mapping to) (copy-hash-table (env-mapping from))))
   (:method ((to frame-chain) (from frame-chain))
-    (setf (env-frames to) (mapcar #'copy-environment-to (env-frames from))))
+    (setf (env-frames to) (mapcar #'copy-environment (env-frames from))))
   (:method :after ((to reverse-environment) (from reverse-environment))
     (setf (env-reverse-mapping to) (copy-hash-table (env-reverse-mapping from)))))
 
 (defgeneric copy-environment (env)
   (:method ((o environment))
     (lret ((copy (make-instance (class-of o))))
-      (copy-environment-to o copy))))
+      (copy-environment-to copy o))))
 
 ;;;
 ;;; Reverse-mapped access
