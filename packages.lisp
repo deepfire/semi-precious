@@ -8,7 +8,7 @@
    #:environment-condition #:environment-error #:simple-environment-error
    #:environment-name-already-bound #:environment-immutable #:environment-name-not-bound #:environment-value-not-bound #:environment-frame-chain-empty
    #:do-lookup #:lookup #:name-bound-p #:bind #:do-unbind #:unbind #:set-value #:env-alist
-   #:map-environment #:copy-environment
+   #:map-environment #:copy-environment-to #:copy-environment
    #:unbind-by-value #:lookup-name
    #:with-metaenvironment #:establish-environment #:release-environment #:find-environment #:with-environment
    #:with-fresh-frame #:do-frame-bindings #:bottom-frame #:find-frame #:with-fresh-frame-bindings))
