@@ -31,6 +31,9 @@
 (define-condition allocation-error (allocation-condition error) ())
 (define-simple-error allocation-error)
 
+(defmethod copy-environment-to :after ((to pool) (from pool))
+  (setf (env-freelist to) (copy-list (env-freelist from))))
+
 (defun make-pool (set)
   "Pretending someone needs that?"
   (make-instance 'pool :freelist set))
@@ -69,6 +72,9 @@
 
 (defun make-pool-backed-frame-chain (set)
   (make-instance 'pool-backed-frame-chain :pool (make-pool set)))
+
+(defmethod copy-environment-to :after ((to pool-backed-frame-chain) (from pool-backed-frame-chain))
+  (setf (env-pool to) (copy-environment (env-pool from))))
 
 (defgeneric pool-evaluate (env name)
   (:method ((o pool-backed-frame-chain) (name symbol))
