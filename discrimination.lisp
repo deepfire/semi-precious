@@ -89,13 +89,14 @@
 (defun discriminator-by-id-path (path at)
   (declare (type discriminator at))
   (if (eq (car path) (discriminator-id at)) at
-      (if-let ((target (find (car path) (discriminator-subs at) :key #'discriminator-id)))
+      (if-let ((target (find (car path) (remove-if-not (of-type 'discriminator) (discriminator-subs at)) :key #'discriminator-id)))
 	      (discriminator-by-id-path (cdr path) target)
 	      (error "No discriminator matching id ~S at ~S." (car path) at))))
 
 (defun discriminator-by-value-path (path at)
   (declare (type discriminator at))
-  (if (null path) at
+  (if (null path)
+      at
       (if-let ((target (discriminator-sub at (car path))))
 	      (discriminator-by-value-path (cdr path) target)
 	      (error "No discriminator matching value ~S at ~S." (car path) at))))
