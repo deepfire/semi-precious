@@ -36,7 +36,7 @@
 
 (defstruct (tree (:copier %copy-tree) (:constructor %make-tree))
   (start 0 :type integer)
-  (length 0 :type (unsigned-byte 32))
+  (length 0 :type unsigned-byte)
   (root (make-plug-leaf 0 0)))
 
 (define-condition tree-error (error)
