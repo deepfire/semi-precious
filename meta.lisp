@@ -21,26 +21,6 @@
 
 (in-package :meta)
 
-(eval-when (:compile-toplevel)
-  (when (find-package :swank) (pushnew :swank *features*) nil))
-
-(defun may-imbue-stream-p (stream)
-  (declare (ignorable stream))
-  #+swank (swank::with-struct (swank::connection. swank::user-output swank::user-io swank::trace-output swank::repl-results) (swank::default-connection)
-            (member stream (list swank::user-output swank::user-io swank::trace-output swank::repl-results))))
-
-(defun imbue (stream object &optional colon-p at-sign-p)
-  (declare (ignorable stream object) (ignore colon-p at-sign-p))
-  #+swank
-  (progn
-    (assert (may-imbue-stream-p stream))
-    (let ((id (and swank:*record-repl-results* (swank::save-presented-object object))))
-      (finish-output stream)
-      (swank::send-to-emacs `(:presentation-start ,id))
-      (swank::send-to-emacs `(:write-string ,(prin1-to-string object)))
-      (swank::send-to-emacs `(:presentation-end ,id))
-      (finish-output stream))))
-
 (defgeneric classification (type)
   (:method ((type (eql 'variable))) "Global variable")
   (:method ((type (eql 'function))) "Function")
@@ -54,7 +34,7 @@
   (:method ((type (eql 'class))) "es"))
 
 (defun function-arglist (fn)
-  (let ((arglist #+(or) (sb-introspect:function-lambda-list fn)))
+  (let ((arglist #+sbcl (sb-introspect:function-lambda-list fn)))
     (subseq arglist 0 (position '&aux arglist))))
 
 (defgeneric arglist (x type)

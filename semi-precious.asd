@@ -22,4 +22,6 @@
    (:file "early-eval" :depends-on ("packages"))
    (:file "meta" :depends-on ("packages"))
 ;;;
+   #+swank
+   (:file "meta-swank" :depends-on ("meta"))
    (:file "allocation-pool" :depends-on ("environment"))))

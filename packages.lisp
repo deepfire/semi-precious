@@ -71,7 +71,8 @@
 (defpackage #:meta
   (:use :common-lisp :alexandria :pergamum :iterate)
   (:export
-   #:explore-package #:describe-package #:package-undocumented-symbols #:imbue))
+   #:explore-package #:describe-package #:package-undocumented-symbols
+   #:imbue))
 
 (defpackage #:octree-1d
   (:nicknames :oct-1d)
