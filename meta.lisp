@@ -85,7 +85,7 @@
   (flet ((long-description-p (docstring) (find #\Newline docstring)))
     (iter (for sym in (sort symbols #'string< :key #'symbol-name))
           (for params = (mapcar #'list (ensure-list (nfsubst (fif #'symbolp #'symbol-name #'write-to-string) (arglist sym type)))))
-          (apply #'format stream (if (and (may-imbue-stream-p stream) imbue-p)
+          (apply #'format stream (if (and #-swank nil #+swank (may-imbue-stream-p stream) imbue-p)
                                      (list "~/meta:imbue/ " (find-object sym type))
                                      (list "~A " sym)))
           (format stream "~@<~{~<~A~:_~:@> ~}~:@>~%" params)
