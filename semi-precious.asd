@@ -5,8 +5,6 @@
 
 (in-package :semi-precious.system)
 
-#+sbcl (require :sb-introspect)
-
 (defsystem :semi-precious
   :depends-on (:alexandria :pergamum :iterate)
   :components
@@ -22,6 +20,6 @@
    (:file "early-eval" :depends-on ("packages"))
    (:file "meta" :depends-on ("packages"))
 ;;;
-   #+swank
+   #+(or)
    (:file "meta-swank" :depends-on ("meta"))
    (:file "allocation-pool" :depends-on ("environment"))))
