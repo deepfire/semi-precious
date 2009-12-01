@@ -54,11 +54,12 @@
    #:submerge-dictionary-to))
 
 (defpackage #:discrimination
-  (:use :common-lisp :alexandria)
+  (:use :common-lisp :alexandria :pergamum)
   (:export
-   #:discriminator #:binary-discriminator #:set-discriminator #:discriminator-sub #:discriminator-subs
-   #:discrimination-condition #:discrimination-error #:discrimination-value-unbound #:discrimination-value-unbound-error #:discrimination-value-unbound-value #:discriminate
-   #:discriminator-by-id-path #:discriminator-by-value-path))
+   #:discrimination-condition #:discrimination-error #:discrimination-value-unbound #:condition-value
+   #:make-discrimination-tree
+   #:discriminate
+   #:*discriminate-verbosely*))
 
 (defpackage #:early-eval
   (:use :common-lisp :alexandria :pergamum)

@@ -1,6 +1,6 @@
 ;;; -*- Mode: LISP; Syntax: COMMON-LISP; Package: DISCRIMINATION; Base: 10 -*-
 ;;;
-;;;  (c) copyright 2007-2008 by
+;;;  (c) copyright 2007-2009 by
 ;;;           Samium Gromoff (_deepfire@feelingofgreen.ru)
 ;;;
 ;;; This library is free software; you can redistribute it and/or
@@ -18,85 +18,80 @@
 ;;; Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 ;;; Boston, MA  02111-1307  USA.
 
-
 (in-package :discrimination)
 
-(defclass discriminator ()
-  ((id :accessor discriminator-id :initarg :id)
-   (fn :accessor discriminator-fn :initarg :fn)))
+;; Discrimination is a general method of organising process of identification
+;; of a certain given phenomena within a set of possibilities, based on iterative
+;; narrowing of the set of possible identities by performing queries about observable
+;; properties of those phenomena.
+;;
+;; Discrimination trees are data structures which carry information
+;; guiding this process of narrowing.  The nodes of that tree correspond to
+;; possible states of the process of discrimination, and as such they
+;; represent sets of remaining possible identities for the observed phenomena.
+;; The leaves of the trees represent final identites.
+;;
+;; Every node, barring the leaves, has at least two edges coming out of it,
+;; which represent a non-overlapping partition of the set of possibilities
+;; corresponding to that node.  The choice of a particular edge is called an 'act of
+;; discrimination' and is performed by a function attached to the node.
+;;
+;; As to phenomena which a discrimination tree is inherently unable to discern,
+;; they are represented by implicit 'failure' edges corresponding to every
+;; non-leaf node.
 
-(defmethod print-object ((d discriminator) stream)
-  (labels ((slot (id) (if (slot-boundp d id) (slot-value d id) :unbound-slot)))
-    (format stream "~@<#<~;~A:~A fn: ~S~;>~:@>"
-	    (type-of d) (slot 'id) (slot 'fn))))
+
+(defvar *discriminate-verbosely* nil
+  "Report discrimination progress to *STANDARD-OUTPUT*.")
 
 (define-condition discrimination-condition ()
   ((discriminator :accessor condition-discriminator :initarg :discriminator)))
+(define-condition discrimination-error (error discrimination-condition) ())
+(define-simple-error discrimination-error)
 
-(define-condition discrimination-error (discrimination-condition)
-  ())
+(define-reported-condition discrimination-value-unbound (discrimination-error)
+  ((value :accessor condition-value :initarg :value))
+  (:report (value)
+           "~@<No binding for value ~S.~:@>" value))
 
-(define-condition discrimination-value-unbound (discrimination-condition)
-  ((value :accessor discrimination-value-unbound-value :initarg :value))
-  (:report (lambda (condition stream)
-             (format stream "~@<discriminator ~S has no binding for value ~S~:@>"
-                     (condition-discriminator condition) (discrimination-value-unbound-value condition)))))
+(defun process-discrimination-tree-definition-node (node)
+  (destructuring-bind (keyword node-value action &rest maybe-subnodes) node
+    (unless (string= "NODE" (symbol-name keyword))
+      (discrimination-error "~@<Malformed discrimination tree: node missing a keyword: ~S.~:@>" node))
+    (unless (or (symbolp action)
+                (and (consp action) (endp (cddr action)) (eq 'function (car action)) (symbolp (cadr action))))
+      (discrimination-error "~@<Malformed discrimination tree: bad action specifier ~S in: ~S.  ~
+                                Must be either a symbol, or a function specifier.~:@>" action node))
+    (typecase action
+      (cons
+       (unless maybe-subnodes
+         (discrimination-error "~@<Malformed discrimination tree: discriminating node missing subnodes: ~S.~:@>" node))
+       `(list ,node-value ,action
+              ,@(mapcar #'process-discrimination-tree-definition-node maybe-subnodes)))
+      (symbol
+       (when maybe-subnodes
+         (discrimination-error "~@<Malformed discrimination tree: leaf node with subnodes: ~S.~:@>" node))
+       `(list ,node-value ',action)))))
 
-(define-condition discrimination-value-unbound-error (discrimination-value-unbound discrimination-error)
-  ())
+(defmacro make-discrimination-tree (&rest trees)
+  (when (not (endp (rest trees)))
+    (discrimination-error "~@<Malformed discrimination tree: more than one root: ~S.~:@>" trees))
+  `,(process-discrimination-tree-definition-node (first trees)))
 
-(defclass binary-discriminator (discriminator)
-  ((fn :type (function (*) boolean))
-   (t-sub :accessor discriminator-t :initform nil :initarg :t)
-   (nil-sub :accessor discriminator-nil :initform nil :initarg :nil)))
-
-(defclass set-discriminator (discriminator)
-  ((sub-set :reader discriminator-set :initform (make-hash-table))))
-
-(defgeneric discriminator-sub (parent val)
-  (:method ((parent binary-discriminator) val)
-    (if val (discriminator-t parent) (discriminator-nil parent)))
-  (:method ((parent set-discriminator) val)
-    (gethash val (discriminator-set parent))))
-
-(defgeneric (setf discriminator-sub) (new parent val)
-  (:method (new (parent binary-discriminator) val)
-    (declare (type boolean val))
-    (if val
-	(setf (discriminator-t parent) new)
-	(setf (discriminator-nil parent) new)))
-  (:method (new (parent set-discriminator) val)
-    (setf (gethash val (discriminator-set parent)) new)))
-
-(defgeneric discriminator-subs (d)
-  (:method ((d binary-discriminator))
-    (list (discriminator-t d) (discriminator-nil d)))
-  (:method ((d set-discriminator))
-    (maphash-values #'identity (discriminator-set d))))
-
-(defun discriminate (d &rest params)
-  (declare (type discriminator d))
-  (let* ((value (apply (discriminator-fn d) params))
-         (sub (discriminator-sub d value)))
-    (typecase sub
-      (discriminator
-       (discriminate sub))
-      (null
-       (signal 'discrimination-value-unbound :discriminator d :value value)
-       nil)
-      (t sub))))
-
-(defun discriminator-by-id-path (path at)
-  (declare (type discriminator at))
-  (if (eq (car path) (discriminator-id at)) at
-      (if-let ((target (find (car path) (remove-if-not (of-type 'discriminator) (discriminator-subs at)) :key #'discriminator-id)))
-	      (discriminator-by-id-path (cdr path) target)
-	      (error "No discriminator matching id ~S at ~S." (car path) at))))
-
-(defun discriminator-by-value-path (path at)
-  (declare (type discriminator at))
-  (if (null path)
-      at
-      (if-let ((target (discriminator-sub at (car path))))
-	      (discriminator-by-value-path (cdr path) target)
-	      (error "No discriminator matching value ~S at ~S." (car path) at))))
+(defun discriminate (discrimination-tree object)
+  (labels ((rec (node)
+             (destructuring-bind (node-value action &rest subnodes) node
+               (when *discriminate-verbosely*
+                 (format t "~@<;; ~@;Discriminating at node ~A: ~A~:@>~%" node-value action))
+               (if (symbolp action)
+                   (prog1 action
+                     (when *discriminate-verbosely*
+                       (format t "~@<;; ~@;Found leaf at node ~A: ~A~:@>~%" node-value action)))
+                   (let* ((discval (funcall action object))
+                          (subnode (assoc discval subnodes)))
+                     (when *discriminate-verbosely*
+                       (format t "~@<;; ~@;Discriminator ~A at node ~A returned ~S.~:@>~%" action node-value discval))
+                     (if subnode
+                         (rec subnode)
+                         (error 'discrimination-value-unbound :value discval)))))))
+    (rec discrimination-tree)))
