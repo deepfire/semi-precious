@@ -1,9 +1,4 @@
-;;; -*- Mode: Lisp -*-
-
-(defpackage :semi-precious.system
-  (:use :cl :asdf))
-
-(in-package :semi-precious.system)
+;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 
 (defsystem :semi-precious
   :depends-on (:alexandria :pergamum :iterate)
