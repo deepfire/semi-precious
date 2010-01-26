@@ -59,7 +59,9 @@
     (unless (string= "NODE" (symbol-name keyword))
       (discrimination-error "~@<Malformed discrimination tree: node missing a keyword: ~S.~:@>" node))
     (unless (or (symbolp action)
-                (and (consp action) (endp (cddr action)) (eq 'function (car action)) (symbolp (cadr action))))
+                (and (consp action) (endp (cddr action)) (eq 'function (car action)) (or (symbolp (cadr action))
+                                                                                         (and (consp (cadr action))
+                                                                                              (eq 'lambda (caadr action))))))
       (discrimination-error "~@<Malformed discrimination tree: bad action specifier ~S in: ~S.  ~
                                 Must be either a symbol, or a function specifier.~:@>" action node))
     (typecase action
