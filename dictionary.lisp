@@ -26,6 +26,9 @@
   (symbols-to-ids (make-hash-table :test 'eq) :type hash-table)
   (growth-size 16 :type (integer (0))))
 
+(defstruct (aliased-dictionary (:conc-name dictionary-) (:include dictionary) (:copier %copy-aliased-dictionary))
+  (aliases-to-ids (make-hash-table :test 'eq) :type hash-table))
+
 (define-condition unknown-symbol (cell-error) ())
 
 (define-condition symbol-already-present (cell-error) ())
@@ -44,17 +47,21 @@
   (dictionary-ids-to-values dictionary))
 
 (declaim (inline symbol-id))
-(defun symbol-id (dictionary symbol)
+(defun symbol-id (dictionary symbol &optional unaliasedp)
   "Return the id of SYMBOL in DICTIONARY."
   (declare (type dictionary dictionary) (type symbol symbol))
-  (or (gethash symbol (dictionary-symbols-to-ids dictionary))
+  (or (if (and (typep dictionary 'aliased-dictionary) (not unaliasedp))
+          (gethash symbol (dictionary-aliases-to-ids dictionary))
+          (gethash symbol (dictionary-symbols-to-ids dictionary)))
       (error 'cell-error :name symbol)))
 
 (declaim (inline symbol-present-p))
-(defun symbol-present-p (dictionary symbol)
+(defun symbol-present-p (dictionary symbol &optional unaliasedp)
   "Determine if SYMBOL is present in DICTIONARY."
   (declare (type dictionary dictionary) (type symbol symbol))
-  (nth-value 1 (gethash symbol (dictionary-symbols-to-ids dictionary))))
+  (nth-value 1 (if (and (typep dictionary 'aliased-dictionary) (not unaliasedp))
+                   (gethash symbol (dictionary-aliases-to-ids dictionary))
+                   (gethash symbol (dictionary-symbols-to-ids dictionary)))))
 
 (declaim (inline id-value))
 (defun id-value (dictionary id)
@@ -70,12 +77,12 @@
 
 (defsetf id-value set-id-value)
 
-(defun translation (dictionary symbol)
+(defun translation (dictionary symbol &optional unaliasedp)
   "Look up the value associated with SYMBOL in DICTIONARY."
   (declare (dictionary dictionary) (symbol symbol))
-  (id-value dictionary (symbol-id dictionary symbol)))
+  (id-value dictionary (symbol-id dictionary symbol unaliasedp)))
 
-(defun set-translation (dictionary symbol new-val)
+(defun set-translation (dictionary symbol &optional new-val)
   "Change the value currently associated with SYMBOL in DICTIONARY to NEW-VAL."
   (declare (dictionary dictionary) (symbol symbol))
   (setf (id-value dictionary (symbol-id dictionary symbol)) new-val))
@@ -83,25 +90,47 @@
 (defsetf translation set-translation)
 
 (declaim (inline add-symbol-unchecked))
-(defun add-symbol-unchecked (dictionary symbol value &aux (values-vec (dictionary-ids-to-values dictionary)))
+(defun add-symbol-unchecked (dictionary symbol value &aux
+                             (values-vec (dictionary-ids-to-values dictionary))
+                             (value (vector-push-extend value values-vec (dictionary-growth-size dictionary))))
   "Adds SYMBOL -> VALUE mapping into DICTIONARY.
-   Does not check if SYMBOL is already present."
-  (setf (gethash symbol (dictionary-symbols-to-ids dictionary))
-        (vector-push-extend value values-vec (dictionary-growth-size dictionary))))
+Does not check if SYMBOL is already present."
+  (when (typep dictionary 'aliased-dictionary)
+    (setf (gethash symbol (dictionary-aliases-to-ids dictionary)) value))
+  (setf (gethash symbol (dictionary-symbols-to-ids dictionary)) value))
 
 (defun add-symbol (dictionary symbol value &optional (error-p t))
   "Add SYMBOL -> VALUE mapping into DICTIONARY, unless it is already present,
-   in which case an error is raised, unless ERROR-P is NIL."
+in which case an error is raised, unless ERROR-P is NIL."
   (cond ((null (symbol-present-p dictionary symbol))
          (add-symbol-unchecked dictionary symbol value))
         (error-p
          (error 'symbol-already-present :name symbol))))
 
+(declaim (inline add-alias-unchecked))
+(defun add-alias-unchecked (dictionary symbol alias &aux
+                            (id (symbol-id dictionary symbol t)))
+  "Adds an ALIAS to SYMBOL into DICTIONARY.
+Do not check if SYMBOL is absent from DICTIONARY."
+  (declare (type aliased-dictionary dictionary))
+  (setf (gethash alias (dictionary-aliases-to-ids dictionary)) id))
+
+(defun add-alias (dictionary symbol alias)
+  "Adds an ALIAS to SYMBOL into DICTIONARY."
+  (declare (type aliased-dictionary dictionary))
+  (cond ((symbol-present-p dictionary symbol t)
+         (add-alias-unchecked dictionary symbol alias))
+        (t
+         (error 'cell-error :name symbol))))
+
 (defun copy-dictionary (d)
   "Return a copy of dictionary D."
   (declare (type dictionary d))
-  (make-dictionary :ids-to-values (copy-array (dictionary-ids-to-values d)) 
-                   :symbols-to-ids (copy-hash-table (dictionary-symbols-to-ids d))))
+  (apply #'make-dictionary
+         :ids-to-values (copy-array (dictionary-ids-to-values d)) 
+         :symbols-to-ids (copy-hash-table (dictionary-symbols-to-ids d))
+         (when (typep d 'aliased-dictionary)
+           (list :aliases-to-ids (copy-hash-table (dictionary-aliases-to-ids d))))))
 
 (defun dictionary-subset-p (d1 d2)
   "Determine whether D1 forms a subset of D2, symbol-wise."
@@ -113,9 +142,9 @@
 
 (defun submerge-dictionary-to (d1 d2 &key (if-does-not-exist :error))
   "Replace all values in D1 with those named correspondingly in D2.
-   Defined keywords:
-    :IF-DOES-NOT-EXIST - one of :ERROR or :CONTINUE
-   See the manual for details. Ha ha."
+Defined keywords:
+ :IF-DOES-NOT-EXIST - one of :ERROR or :CONTINUE
+See the manual for details. Ha ha."
   (declare (type dictionary d1 d2))
   (iter (for (symbol id) in-hashtable (dictionary-symbols-to-ids d1))
         (if-let ((d2-id (gethash symbol (dictionary-symbols-to-ids d2))))

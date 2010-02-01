@@ -46,9 +46,11 @@
   (:use :common-lisp :alexandria :iterate)
   (:export
    #:dictionary #:make-dictionary
+   #:aliased-dictionary #:make-aliased-dictionary
    #:unknown-symbol #:dictionaries-not-form-subset-superset-relation
    #:dictionary-id-map #:symbol-id #:id-value #:set-id-value #:symbol-present-p #:translation #:set-translation
    #:add-symbol-unchecked #:add-symbol
+   #:add-alias-unchecked #:add-alias
    #:copy-dictionary
    #:dictionary-subset-p
    #:submerge-dictionary-to))
