@@ -1,8 +1,7 @@
 ;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 
 (defsystem :semi-precious
-  :depends-on (:alexandria :pergamum :iterate
-               #+sbcl :sb-introspect)
+  :depends-on (:alexandria :pergamum :iterate)
   :components
   ((:file "packages")
    (:file "require-sb-introspect")
