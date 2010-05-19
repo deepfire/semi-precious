@@ -53,15 +53,20 @@
 (define-condition environment-error (environment-condition error) ())
 (define-simple-error environment-error)
 (define-reported-condition environment-name-already-bound (environment-condition cell-error) ()
-  (:report (env #+sbcl sb-kernel::name #+ecl si::name) "~@<Name ~A already bound in ~A~:@>" #+sbcl sb-kernel::name #+ecl si::name env))
+  (:report (env #+sbcl sb-kernel::name #+ecl si::name #+ccl ccl::name)
+           "~@<Name ~A already bound in ~A~:@>" #+sbcl sb-kernel::name #+ecl si::name #+ccl ccl::name env))
 (define-reported-condition environment-immutable (environment-condition cell-error) ()
-  (:report (env #+sbcl sb-kernel::name #+ecl si::name) "~@<Attempt to set value of name ~A in immutable environment ~A~:@>" #+sbcl sb-kernel::name #+ecl si::name env))
+  (:report (env #+sbcl sb-kernel::name #+ecl si::name #+ccl ccl::name)
+           "~@<Attempt to set value of name ~A in immutable environment ~A~:@>" #+sbcl sb-kernel::name #+ecl si::name #+ccl ccl::name env))
 (define-reported-condition environment-name-not-bound (environment-condition cell-error) ()
-  (:report (env #+sbcl sb-kernel::name #+ecl si::name) "~@<Name ~A not bound in ~A~:@>" #+sbcl sb-kernel::name #+ecl si::name env))
+  (:report (env #+sbcl sb-kernel::name #+ecl si::name #+ccl ccl::name)
+           "~@<Name ~A not bound in ~A~:@>" #+sbcl sb-kernel::name #+ecl si::name #+ccl ccl::name env))
 (define-reported-condition environment-value-not-bound (environment-condition cell-error) ()
-  (:report (env #+sbcl sb-kernel::name #+ecl si::name) "~@<Value ~A not bound in ~A~:@>" #+sbcl sb-kernel::name #+ecl si::name env))
+  (:report (env #+sbcl sb-kernel::name #+ecl si::name #+ccl ccl::name)
+           "~@<Value ~A not bound in ~A~:@>" #+sbcl sb-kernel::name #+ecl si::name #+ccl ccl::name env))
 (define-reported-condition environment-frame-chain-empty (environment-condition) ()
-  (:report (env) "~@<No frames established in ~S.~:@>" env))
+  (:report (env)
+           "~@<No frames established in ~S.~:@>" env))
 
 ;;;
 ;;; Generic
@@ -123,6 +128,7 @@
   (:documentation
    "Change an already existing binding of NAME in ENVIRONMENT.")
   (:method :around ((o environment) (name symbol) value)
+    (declare (ignore value))
     (if (name-bound-p o name)
         (call-next-method)
         (error 'environment-name-not-bound :env o :name name)))
@@ -131,6 +137,7 @@
   (:method ((o hash-table-environment) (name symbol) value)
     (setf (gethash name (env-mapping o)) value))
   (:method :around ((o immutable-environment) (name symbol) value)
+    (declare (ignore value))
     (error 'environment-immutable :env o :name name)))
 
 (defsetf lookup set-value)

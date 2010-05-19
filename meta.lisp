@@ -34,11 +34,12 @@
   (:method ((type (eql 'class))) "es"))
 
 (defun function-arglist (fn)
+  #-(and sbcl (not oldsbcl)) (declare (ignore fn))
   (let ((arglist #+(and sbcl (not oldsbcl)) (sb-introspect:function-lambda-list fn)))
     (subseq arglist 0 (position '&aux arglist))))
 
 (defgeneric arglist (x type)
-  (:method ((o symbol) type) nil)
+  (:method ((o symbol) type) (declare (ignore type )) nil)
   (:method ((o symbol) (type (eql 'function))) (function-arglist o))
   (:method ((o symbol) (type (eql 'macro)))    (function-arglist o)))
 
@@ -52,8 +53,8 @@
   (if (eq type 'macro) 'function type))
 
 (defun definition-source-pathname (name type)
-  #+sbcl (sb-introspect:definition-source-pathname (first (sb-introspect:find-definition-sources-by-name name (make-keyword (symbol-name (downgraded-documentation-type type))))))
-  #-sbcl nil)
+  #-sbcl (declare (ignore name type))
+  #+sbcl (sb-introspect:definition-source-pathname (first (sb-introspect:find-definition-sources-by-name name (make-keyword (symbol-name (downgraded-documentation-type type)))))))
 
 (defun explore-package (package &aux (package (find-package package)))
   "Given a PACKAGE designator, return its external symbols, as well as
@@ -82,6 +83,7 @@
           (not (null documentation))))
 
 (defun describe-symbol-block (stream type symbols describe-undocumented imbue-p)
+  #-swank (declare (ignorable imbue-p))
   (flet ((long-description-p (docstring) (find #\Newline docstring)))
     (iter (for sym in (sort symbols #'string< :key #'symbol-name))
           (for params = (mapcar #'list (ensure-list (nfsubst (fif #'symbolp #'symbol-name #'write-to-string) (arglist sym type)))))
@@ -95,6 +97,7 @@
 
 (defgeneric blocking-parameters (discriminator type)
   (:method ((d (eql :first-letter)) type)
+    (declare (ignore type))
     (values (compose (rcurry #'aref 0) #'symbol-name)
             (list #'char< :key #'car)
             (constantly #.(make-string 1 :initial-element #\Newline))))
