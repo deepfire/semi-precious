@@ -58,17 +58,17 @@
 ;;;;
 ;;;; Leaf: (address value barrier half) | (:plug value barrier half)
 ;;;;
-(defmacro leaf-addr (leaf)
+(defmacro leaf-address (leaf)
   `(first ,leaf))
 
-(defmacro leaf-val (leaf)
+(defmacro leaf-value (leaf)
   `(second ,leaf))
 
 (defun leafp (node)
-  (not (consp (leaf-addr node))))
+  (not (consp (leaf-address node))))
 
 (defun leaf-plug-p (leaf)
-  (eq (leaf-addr leaf) :plug))
+  (eq (leaf-address leaf) :plug))
 
 (defmacro leaf-b (leaf)
   `(third ,leaf))
@@ -90,7 +90,7 @@
 
 (defun print-l (leaf)
   (format t "~S-~S, ~S+/-~S"
-	  (leaf-addr leaf) (leaf-val leaf) (leaf-b leaf) (leaf-h leaf)))
+	  (leaf-address leaf) (leaf-value leaf) (leaf-b leaf) (leaf-h leaf)))
 
 (defun walkcheck (leaf)
   (format t "===========================================~%")
@@ -109,8 +109,8 @@
 	      that means inserting plugs, if we have to."
 	     (setf (leaf-b x) barrier (leaf-h x) half
 		   (leaf-b y) barrier (leaf-h y) half)
-	     (let ((l-fit (< (leaf-addr x) barrier))
-		   (r-fit (>= (leaf-addr y) barrier)))
+	     (let ((l-fit (< (leaf-address x) barrier))
+		   (r-fit (>= (leaf-address y) barrier)))
 	       (if (and l-fit r-fit) ;; barrier is descriptive, no need to subdivide
 		   (progn
 		     (loop :for lr = x :then l :for l = (pop lsew) :while l
@@ -132,9 +132,9 @@
 		     (values subx suby)))))
 	   (split-or-replace-leaf (sub barrier half)
 	     (cond ((leaf-plug-p sub)        ;; no information stored
-		    (setf (leaf-addr sub) addr (leaf-val sub) val))
-		   ((= (leaf-addr sub) addr) ;; overwriting
-		    (setf (leaf-val sub) val))
+		    (setf (leaf-address sub) addr (leaf-value sub) val))
+		   ((= (leaf-address sub) addr) ;; overwriting
+		    (setf (leaf-value sub) val))
 		   (t
 		    (destructuring-bind (saddr sval b h . (prev . next)) sub
 		      (declare (ignorable b h))
@@ -165,7 +165,7 @@
 	     (if (leafp sub)
 		 (if (leaf-plug-p sub)
 		     (seek-plugs sub #'leaf-prev)
-		     (if (< addr (leaf-addr sub))
+		     (if (< addr (leaf-address sub))
 			 (seek-plugs sub #'leaf-prev)
 			 sub))
 		 (let ((quarta (ash half -1)))
@@ -196,20 +196,20 @@
   "Find in TREE the most adjacent value-address pair with address less,
    or equal to ADDR, and return value and address as multiple values, or NIL."
   (when-let ((prev (%tree-left addr tree)))
-    (values (leaf-val prev) (leaf-addr prev))))
+    (values (leaf-value prev) (leaf-address prev))))
 
 (defun tree-right (addr tree)
   "Find in TREE the most adjacent value-address pair with address more
    than ADDR, and return value and address as multiple values, or NIL."
   (when-let* ((prev (%tree-left addr tree))
               (next (seek-plugs prev #'leaf-next)))
-    (values (leaf-val next) (leaf-addr next))))
+    (values (leaf-value next) (leaf-address next))))
 
 (defun mapc-tree-values (fn tree)
   "Map FN over TREE values. Return NIL."
   (cond ((leafp tree)
 	 (unless (leaf-plug-p tree) 
-	   (funcall fn (leaf-val tree))))
+	   (funcall fn (leaf-value tree))))
 	(t
 	 (mapc-tree-values fn (car tree))
 	 (mapc-tree-values fn (cdr tree)))))
