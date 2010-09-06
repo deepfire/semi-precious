@@ -82,13 +82,6 @@
 (defun (setf leaf-next) (val leaf)
   (setf (cdddr (cddr leaf)) val))
 
-(defun leftmost (tree)
-  (labels ((iterate (sub)
-	     (if (leafp sub)
-		 sub
-		 (iterate (car sub)))))
-    (iterate (tree-root tree))))
-
 (defun print-l (leaf)
   (format t "~S-~S, ~S+/-~S"
 	  (leaf-addr leaf) (leaf-val leaf) (leaf-b leaf) (leaf-h leaf)))
@@ -178,21 +171,25 @@
 		(ash (tree-length tree) -1))
 	     (ash (tree-length tree) -1))))
 
+(defun leftmost (tree)
+  (labels ((iterate (sub)
+	     (if (leafp sub)
+		 sub
+		 (iterate (car sub)))))
+    (iterate (tree-root tree))))
+
 (defun tree-left (addr tree)
   "Find in TREE the most adjacent value-address pair with address less,
    or equal to ADDR, and return name and address as multiple values, or NIL."
-  (let ((result (%tree-left addr tree)))
-    (when result
-      (values (cadr result) (car result)))))
+  (when-let ((prev (%tree-left addr tree)))
+    (values (leaf-val prev) (leaf-addr prev))))
 
 (defun tree-right (addr tree)
   "Find in TREE the most adjacent value-address pair with address more
    than ADDR, and return name and address as multiple values, or NIL."
-  (let* ((prev (%tree-left addr tree)))
-    (if-let ((next (when prev (seek-plugs prev #'leaf-next))))
-      (values (cadr next) (car next))
-      (let ((leftmost (leftmost tree)))
-        (values (cadr leftmost) (car leftmost))))))
+  (when-let* ((prev (%tree-left addr tree))
+              (next (seek-plugs prev #'leaf-next)))
+    (values (leaf-val next) (leaf-addr next))))
 
 (defun mapc-tree-values (fn tree)
   "Map FN over TREE values. Return NIL."
@@ -207,7 +204,7 @@
   "Execute BODY for every value (lexically bound to VAL) in TREE."
   `(mapc-tree-values (lambda (,val)
                        ,@body)
-		    (tree-root ,tree)))
+                     (tree-root ,tree)))
 
 (defun tree-list (tree &aux result)
   "Flatten TREE."
