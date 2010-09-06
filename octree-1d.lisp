@@ -177,19 +177,20 @@
 		(ash (tree-length tree) -1))
 	     (ash (tree-length tree) -1))))
 
-(defun leftmost (tree)
+;;; XXX: of course the CONSness problem is bigger than just these two functions...
+(defun leftmost (tree leafp)
   (labels ((eeterate (sub)
-	     (if (leafp sub)
+	     (if (funcall leafp sub)
 		 sub
-		 (iterate (car sub)))))
+		 (eeterate (car sub)))))
     (eeterate (tree-root tree))))
 
-(defun rightmost (tree)
+(defun rightmost (tree leafp)
   ;;; XXX: are we sure we won't return a plug?
   (labels ((eeterate (sub)
-             (if (leafp sub)
+             (if (funcall leafp sub)
                  sub
-                 (iterate (cdr sub)))))
+                 (eeterate (cdr sub)))))
     (eeterate (tree-root tree))))
 
 (defun tree-left (addr tree)
