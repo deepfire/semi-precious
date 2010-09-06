@@ -52,6 +52,12 @@
   (declare (type (integer (0)) length))
   (%make-tree :start start :length (ilog2-cover length)))
 
+;;;;             ,- barrier
+;;;; |<= half == V == half =>|
+;;;; Node: (left . right)
+;;;;
+;;;; Leaf: (address value barrier half) | (:plug value barrier half)
+;;;;
 (defmacro leaf-addr (leaf)
   `(first ,leaf))
 
@@ -172,11 +178,19 @@
 	     (ash (tree-length tree) -1))))
 
 (defun leftmost (tree)
-  (labels ((iterate (sub)
+  (labels ((eeterate (sub)
 	     (if (leafp sub)
 		 sub
 		 (iterate (car sub)))))
-    (iterate (tree-root tree))))
+    (eeterate (tree-root tree))))
+
+(defun rightmost (tree)
+  ;;; XXX: are we sure we won't return a plug?
+  (labels ((eeterate (sub)
+             (if (leafp sub)
+                 sub
+                 (iterate (cdr sub)))))
+    (eeterate (tree-root tree))))
 
 (defun tree-left (addr tree)
   "Find in TREE the most adjacent value-address pair with address less,

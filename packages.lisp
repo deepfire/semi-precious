@@ -82,6 +82,7 @@
   (:use :common-lisp :alexandria :pergamum)
   (:export
    #:tree #:make-tree #:invalid-tree-address
+   #:leftmost #:rightmost
    #:insert
    #:tree-left #:tree-right
    #:mapc-tree-values #:do-tree-values
