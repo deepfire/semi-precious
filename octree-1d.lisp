@@ -180,13 +180,13 @@
 
 (defun tree-left (addr tree)
   "Find in TREE the most adjacent value-address pair with address less,
-   or equal to ADDR, and return name and address as multiple values, or NIL."
+   or equal to ADDR, and return value and address as multiple values, or NIL."
   (when-let ((prev (%tree-left addr tree)))
     (values (leaf-val prev) (leaf-addr prev))))
 
 (defun tree-right (addr tree)
   "Find in TREE the most adjacent value-address pair with address more
-   than ADDR, and return name and address as multiple values, or NIL."
+   than ADDR, and return value and address as multiple values, or NIL."
   (when-let* ((prev (%tree-left addr tree))
               (next (seek-plugs prev #'leaf-next)))
     (values (leaf-val next) (leaf-addr next))))
