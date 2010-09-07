@@ -166,6 +166,7 @@
    #:tree-left
    #:tree-right
    #:insert
+   #:mapc-tree
    #:mapc-tree-values
    #:do-tree-values
    #:tree-list))

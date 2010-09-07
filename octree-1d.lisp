@@ -184,6 +184,16 @@ given MEASURE in TREE as multiple values."
   (when-let ((next (nth-value 1 (stab measure tree))))
     (values (leaf-value next) (leaf-measure next))))
 
+(defun mapc-tree (fn tree)
+  "Map FN over TREE measures and values.  Return NIL."
+  (labels ((rec (tree)
+             (typecase tree
+               (leaf (funcall fn (leaf-measure tree) (leaf-value tree)))
+               (cons (rec (car tree))
+                     (rec (cdr tree))))))
+    (rec tree))
+  (values))
+
 (defun mapc-tree-values (fn tree)
   "Map FN over TREE values.  Return NIL."
   (labels ((rec (tree)
