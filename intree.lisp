@@ -192,7 +192,7 @@ given MEASURE in TREE as multiple values."
   "Map FN over TREE values.  Return NIL."
   (labels ((rec (tree)
              (typecase tree
-               (leaf (funcall fn (leaf-measure tree)))
+               (leaf (funcall fn (leaf-value tree)))
                (cons (rec (car tree))
                      (rec (cdr tree))))))
     (rec tree))
