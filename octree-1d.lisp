@@ -1,6 +1,6 @@
 ;;; -*- Mode: LISP; Syntax: COMMON-LISP; Package: OCTREE-1D; Base: 10 -*-
 ;;;
-;;;  (c) copyright 2007-2008 by
+;;;  (c) copyright 2007-2010 by
 ;;;           Samium Gromoff (_deepfire@feelingofgreen.ru)
 ;;;
 ;;; This library is free software; you can redistribute it and/or
@@ -28,192 +28,171 @@
 ;;;
 ;;; the tree is sewn at leaves (see the leaf format)
 ;;; plug nodes describe unclaimed areas in properly split tree format
-(defun make-leaf (addr val prev next)
-  (cons addr (cons val (cons nil (cons nil (cons prev next))))))
+(defstruct (base
+             (:conc-name leaf-))
+  (prev    nil :type (or null base))
+  (next    nil :type (or null base)))
 
-(defun make-plug-leaf (b h)
-  (cons :plug (cons :plug (cons b (cons h (cons nil nil))))))
+(defstruct (plug
+             (:include base)
+             (:constructor make-plug ())))
+
+(defstruct (leaf
+             (:include base)
+             (:constructor make-leaf (measure value prev next)))
+  (measure nil :type integer)
+  value)
+
+#+ (or)
+(defmethod print-object ((o leaf) stream)
+  (print-unreadable-object (o stream :type t)
+    (format stream "~S-~S, ~S+/-~S"
+            (leaf-measure o) (leaf-value o) (leaf-barrier o) (leaf-half o))))
 
 (defstruct (tree (:copier %copy-tree) (:constructor %make-tree))
-  (start 0 :type integer)
-  (length 0 :type unsigned-byte)
-  (root (make-plug-leaf 0 0)))
+  (start  0 :type integer)
+  (length 0 :type unsigned-byte)                   
+  (root   (make-plug) :type (or cons base)))
 
 (define-condition tree-error (error)
   ((tree :reader cond-tree :initarg :tree)))
 
-(define-condition invalid-tree-address (tree-error)
-  ((address :reader cond-address :initarg :address))
+(define-condition invalid-tree-measure (tree-error)
+  ((measure :reader cond-measure :initarg :measure))
   (:report (lambda (cond stream)
-             (format stream "~@<Address ~D is out of bounds for tree ~S~:@>"
-                     (cond-address cond) (cond-tree cond)))))
+             (format stream "~@<Measure ~D is out of bounds for tree ~S~:@>"
+                     (cond-measure cond) (cond-tree cond)))))
 
 (defun make-tree (&key (start 0) length)
   (declare (type (integer (0)) length))
   (%make-tree :start start :length (ilog2-cover length)))
 
-;;;;             ,- barrier
-;;;; |<= half == V == half =>|
-;;;; Node: (left . right)
-;;;;
-;;;; Leaf: (address value barrier half) | (:plug value barrier half)
-;;;;
-(defmacro leaf-address (leaf)
-  `(first ,leaf))
-
-(defmacro leaf-value (leaf)
-  `(second ,leaf))
-
-(defun leafp (node)
-  (not (consp (leaf-address node))))
-
-(defun leaf-plug-p (leaf)
-  (eq (leaf-address leaf) :plug))
-
-(defmacro leaf-b (leaf)
-  `(third ,leaf))
-
-(defmacro leaf-h (leaf)
-  `(fourth ,leaf))
-
-(defun leaf-prev (leaf)
-  (caddr (cddr leaf)))
-
-(defun leaf-next (leaf)
-  (cdddr (cddr leaf)))
-
-(defun (setf leaf-prev) (val leaf)
-  (setf (caddr (cddr leaf)) val))
-
-(defun (setf leaf-next) (val leaf)
-  (setf (cdddr (cddr leaf)) val))
-
-(defun print-l (leaf)
-  (format t "~S-~S, ~S+/-~S"
-	  (leaf-address leaf) (leaf-value leaf) (leaf-b leaf) (leaf-h leaf)))
-
-(defun walkcheck (leaf)
-  (format t "===========================================~%")
-  (loop :for iter = leaf :then (leaf-next iter) :while iter
-     :do (print-l iter) (terpri)))
-
-(defun insert (addr val tree)
-  (declare (optimize (debug 3) (safety 3) (space 0) (speed 0)) (type integer addr))
-  (unless (and (>= addr (tree-start tree))
-               (< addr (+ (tree-start tree) (tree-length tree))))
-    (error 'invalid-tree-address :tree tree :address addr))
+(defun insert (measure val tree)
+  (declare (optimize (debug 3) (safety 3) (space 0) (speed 0)) (type integer measure))
+  (unless (and (>= measure (tree-start tree))
+               (< measure (+ (tree-start tree) (tree-length tree))))
+    (error 'invalid-tree-measure :tree tree :measure measure))
   (labels ((sew (p n)
 	     (setf (leaf-prev n) p (leaf-next p) n))
-	   (split-leaf-iterate (x y barrier half lsew rsew)
+	   (split-leaf-iterate (x y barrier half left-thread right-thread)
 	     "return a subtree, with a nonviolating split.
 	      that means inserting plugs, if we have to."
-	     (setf (leaf-b x) barrier (leaf-h x) half
-		   (leaf-b y) barrier (leaf-h y) half)
-	     (let ((l-fit (< (leaf-address x) barrier))
-		   (r-fit (>= (leaf-address y) barrier)))
-	       (if (and l-fit r-fit) ;; barrier is descriptive, no need to subdivide
-		   (progn
-		     (loop :for lr = x :then l :for l = (pop lsew) :while l
-                                                                   :do (sew l lr))
-		     (loop :for rl = y :then r :for r = (pop rsew) :while r
-                                                                   :do (sew rl r))
+	     (let ((l-fit (<  (leaf-measure x) barrier))
+		   (r-fit (>= (leaf-measure y) barrier)))
+               ;; see if barrier discriminates between X and Y
+	       (if (and l-fit r-fit)
+		   (progn ;; all right, x is to the left, y to the right, sew
+		     (iter (for lr initially x then l)
+                           (for l = (pop left-thread))
+                           (while l)
+                           (sew l lr))
+		     (iter (for rl initially y then r)
+                           (for r = (pop right-thread))
+                           (while r)
+                           (sew rl r))
 		     (sew x y)
-		     (values x y))
+		     (cons x y))
+                   ;; no, X and Y on the same side, need to refine further..
 		   (let* ((quarta (ash half -1))
-			  (plug (make-plug-leaf (+ barrier (* quarta (if l-fit 1 -1)))
-						quarta))
-			  (ret (multiple-value-call #'cons
-                                 (split-leaf-iterate
-                                  x y (+ barrier (* quarta (if l-fit -1 1))) quarta
-                                  (if l-fit lsew (cons plug lsew))
-                                  (if r-fit rsew (cons plug rsew)))))
-			  (subx plug) (suby ret))
-		     (when l-fit (rotatef subx suby))
-		     (values subx suby)))))
-	   (split-or-replace-leaf (sub barrier half)
-	     (cond ((leaf-plug-p sub)        ;; no information stored
-		    (setf (leaf-address sub) addr (leaf-value sub) val))
-		   ((= (leaf-address sub) addr) ;; overwriting
-		    (setf (leaf-value sub) val))
-		   (t
-		    (destructuring-bind (saddr sval b h . (prev . next)) sub
-		      (declare (ignorable b h))
-		      (let ((x (make-leaf saddr sval nil nil))
-			    (y (make-leaf addr val nil nil)))
-			(if (> saddr addr)
-			    (rotatef x y))
-			(setf (values (car sub) (cdr sub))
-			      (split-leaf-iterate x y barrier half (list prev) (list next))))))))
+                          (subx (make-plug))
+                          (suby (split-leaf-iterate x y (+ barrier (* quarta (if l-fit -1 1))) quarta
+                                                    (if l-fit left-thread  (cons subx left-thread))
+                                                    (if r-fit right-thread (cons subx right-thread)))))
+		     (when l-fit
+                       (rotatef subx suby))
+		     (cons subx suby)))))
+	   (split-leaf (sub barrier half)
+             (let ((x (make-leaf (leaf-measure sub) (leaf-value sub) nil nil))
+                   (y (make-leaf       measure            val        nil nil)))
+               (when (> (leaf-measure sub) measure)
+                 (rotatef x y))
+               (split-leaf-iterate x y barrier half (list (leaf-prev sub)) (list (leaf-next sub)))))
 	   (iterate-to-leaf (sub barrier half)
-             (if (leafp sub)
-                 (split-or-replace-leaf sub barrier half)
-                 (let ((quarta (ash half -1)))
-                   (if (< addr barrier)
-                       (iterate-to-leaf (car sub) (- barrier quarta) quarta)
-                       (iterate-to-leaf (cdr sub) (+ barrier quarta) quarta))))))
+             (etypecase sub
+               (plug (make-leaf measure val (leaf-prev sub) (leaf-next sub)))
+               (leaf (if (= measure (leaf-measure sub))
+                         (progn (setf (leaf-value sub) val)
+                                sub)
+                         (split-leaf sub barrier half)))
+               (cons (let ((quarta (ash half -1)))
+                       (if (< measure barrier)
+                           (setf (car sub) (iterate-to-leaf (car sub) (- barrier quarta) quarta))
+                           (setf (cdr sub) (iterate-to-leaf (cdr sub) (+ barrier quarta) quarta)))
+                       sub)))))
     (let ((half (ash (tree-length tree) -1)))
-      (iterate-to-leaf (tree-root tree) (+ (tree-start tree) half) half))))
+      ;; we adopt a dirty, yet simple approach of excessively overwriting all our way down the tree
+      ;; even if it is not needed
+      (setf (tree-root tree)
+            (iterate-to-leaf (tree-root tree) (+ (tree-start tree) half) half)))))
 
 (defun seek-plugs (sub fn)
-  (let ((prev (funcall fn sub)))
-    (if (leaf-plug-p prev)
-	(seek-plugs prev fn)
-	prev)))
+  (labels ((rec (sub)
+             (let ((prev (funcall fn sub)))
+               (if (plug-p prev)
+                   (rec prev)
+                   prev))))
+    (rec sub)))
 
-(defun %tree-left (addr tree)
-  (labels ((iterate (sub barrier half)
-	     (if (leafp sub)
-		 (if (leaf-plug-p sub)
-		     (seek-plugs sub #'leaf-prev)
-		     (if (< addr (leaf-address sub))
-			 (seek-plugs sub #'leaf-prev)
-			 sub))
-		 (let ((quarta (ash half -1)))
-		   (if (< addr barrier)
-		       (iterate (car sub) (- barrier quarta) quarta)
-		       (iterate (cdr sub) (+ barrier quarta) quarta))))))
-    (iterate (tree-root tree)
-	     (+ (tree-start tree)
-		(ash (tree-length tree) -1))
-	     (ash (tree-length tree) -1))))
+(defun stab (measure tree)
+  "Return the points planted to the left and to the right of the
+given MEASURE in TREE as multiple values."
+  (labels ((rec (sub barrier half)
+             (etypecase sub
+               (cons (let ((quarta (ash half -1)))
+                       (if (< measure barrier)
+                           (rec (car sub) (- barrier quarta) quarta)
+                           (rec (cdr sub) (+ barrier quarta) quarta))))
+               (plug (values (seek-plugs sub #'leaf-prev)
+                             (seek-plugs sub #'leaf-next)))
+               (leaf (if (< measure (leaf-measure sub))
+			 (values (seek-plugs sub #'leaf-prev)
+                                 sub)
+			 (values sub
+                                 (seek-plugs sub #'leaf-next)))))))
+    (let ((half (ash (tree-length tree) -1)))
+      (rec (tree-root tree) (+ (tree-start tree) half) half))))
 
-;;; XXX: of course the CONSness problem is bigger than just these two functions...
-(defun leftmost (tree leafp)
-  (labels ((eeterate (sub)
-	     (if (funcall leafp sub)
-		 sub
-		 (eeterate (car sub)))))
-    (eeterate (tree-root tree))))
+(defun leftmost (tree)
+  (labels ((rec (sub)
+	     (if (consp sub)
+		 (rec (car sub))
+		 sub)))
+    (let ((r (rec (tree-root tree))))
+      (if (plug-p r)
+          (seek-plugs r #'leaf-next)
+          r))))
 
-(defun rightmost (tree leafp)
-  ;;; XXX: are we sure we won't return a plug?
-  (labels ((eeterate (sub)
-             (if (funcall leafp sub)
-                 sub
-                 (eeterate (cdr sub)))))
-    (eeterate (tree-root tree))))
+(defun rightmost (tree)
+  (labels ((rec (sub)
+             (if (consp sub)
+                 (rec (cdr sub))
+                 sub)))
+    (let ((r (rec (tree-root tree))))
+      (if (plug-p r)
+          (seek-plugs r #'leaf-prev)
+          r))))
 
-(defun tree-left (addr tree)
-  "Find in TREE the most adjacent value-address pair with address less,
-   or equal to ADDR, and return value and address as multiple values, or NIL."
-  (when-let ((prev (%tree-left addr tree)))
-    (values (leaf-value prev) (leaf-address prev))))
+(defun tree-left (measure tree)
+  "Find in TREE the most adjacent value-measure pair with measure less,
+   or equal to MEASURE, and return value and measure as multiple values, or NIL."
+  (when-let ((prev (nth-value 0 (stab measure tree))))
+    (values (leaf-value prev) (leaf-measure prev))))
 
-(defun tree-right (addr tree)
-  "Find in TREE the most adjacent value-address pair with address more
-   than ADDR, and return value and address as multiple values, or NIL."
-  (when-let* ((prev (%tree-left addr tree))
-              (next (seek-plugs prev #'leaf-next)))
-    (values (leaf-value next) (leaf-address next))))
+(defun tree-right (measure tree)
+  "Find in TREE the most adjacent value-measure pair with measure more
+   than MEASURE, and return value and measure as multiple values, or NIL."
+  (when-let ((next (nth-value 1 (stab measure tree))))
+    (values (leaf-value next) (leaf-measure next))))
 
 (defun mapc-tree-values (fn tree)
-  "Map FN over TREE values. Return NIL."
-  (cond ((leafp tree)
-	 (unless (leaf-plug-p tree) 
-	   (funcall fn (leaf-value tree))))
-	(t
-	 (mapc-tree-values fn (car tree))
-	 (mapc-tree-values fn (cdr tree)))))
+  "Map FN over TREE values.  Return NIL."
+  (labels ((rec (tree)
+             (typecase tree
+               (leaf (funcall fn (leaf-measure tree)))
+               (cons (rec (car tree))
+                     (rec (cdr tree))))))
+    (rec tree))
+  (values))
 
 (defmacro do-tree-values ((val tree) &body body)
   "Execute BODY for every value (lexically bound to VAL) in TREE."

@@ -148,18 +148,24 @@
 
 (defpackage #:octree-1d
   (:nicknames :oct-1d)
-  (:use :common-lisp :alexandria :pergamum)
+  (:use :common-lisp :alexandria :pergamum :iterate)
   (:export
    #:tree
+   #:tree-start
+   #:tree-length
+   #:tree-root
    #:make-tree
-   #:invalid-tree-address
+   #:invalid-tree-measure
+   #:leaf
+   #:leaf-p
+   #:leaf-measure
+   #:leaf-value
    #:leftmost
    #:rightmost
-   #:leaf-address
-   #:leaf-value
-   #:insert
+   #:stab
    #:tree-left
    #:tree-right
+   #:insert
    #:mapc-tree-values
    #:do-tree-values
    #:tree-list))
