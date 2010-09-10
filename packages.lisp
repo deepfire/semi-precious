@@ -146,8 +146,8 @@
    #:package-undocumented-symbols
    #:imbue))
 
-(defpackage #:octree-1d
-  (:nicknames :oct-1d)
+(defpackage #:almost-interval-tree
+  (:nicknames :intree)
   (:use :common-lisp :alexandria :pergamum :iterate)
   (:export
    #:tree

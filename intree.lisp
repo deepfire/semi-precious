@@ -1,4 +1,4 @@
-;;; -*- Mode: LISP; Syntax: COMMON-LISP; Package: OCTREE-1D; Base: 10 -*-
+;;; -*- Mode: LISP; Syntax: COMMON-LISP; Package: INTREE; Base: 10 -*-
 ;;;
 ;;;  (c) copyright 2007-2010 by
 ;;;           Samium Gromoff (_deepfire@feelingofgreen.ru)
@@ -19,7 +19,7 @@
 ;;; Boston, MA  02111-1307  USA.
 
 
-(in-package :oct-1d)
+(in-package :intree)
 
 ;;; three node formats:
 ;;; leaf: ((unsigned-byte 32) . (value . (prev . next)))
@@ -42,12 +42,6 @@
              (:constructor make-leaf (measure value prev next)))
   (measure nil :type integer)
   value)
-
-#+ (or)
-(defmethod print-object ((o leaf) stream)
-  (print-unreadable-object (o stream :type t)
-    (format stream "~S-~S, ~S+/-~S"
-            (leaf-measure o) (leaf-value o) (leaf-barrier o) (leaf-half o))))
 
 (defstruct (tree (:copier %copy-tree) (:constructor %make-tree))
   (start  0 :type integer)

@@ -9,7 +9,7 @@
    (:file "environment" :depends-on ("packages"))
    (:file "depsolver" :depends-on ("packages"))
    (:file "discrimination" :depends-on ("packages"))
-   (:file "octree-1d" :depends-on ("packages"))
+   (:file "intree" :depends-on ("packages"))
    (:file "dictionary" :depends-on ("packages"))
    (:file "state" :depends-on ("packages"))
    (:file "circular" :depends-on ("packages"))
