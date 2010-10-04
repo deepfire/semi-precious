@@ -158,9 +158,10 @@ given MEASURE in TREE as multiple values."
 
 (defun rightmost (tree)
   (labels ((rec (sub)
-             (if (consp sub)
-                 (rec (cdr sub))
-                 sub)))
+             (identity
+              (if (consp sub)
+                  (rec (cdr sub))
+                  sub))))
     (let ((r (rec (tree-root tree))))
       (if (plug-p r)
           (seek-plugs r #'leaf-prev)
