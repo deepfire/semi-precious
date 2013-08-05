@@ -146,31 +146,6 @@
    #:package-undocumented-symbols
    #:imbue))
 
-(defpackage #:almost-interval-tree
-  (:nicknames :intree)
-  (:use :common-lisp :alexandria :pergamum :iterate)
-  (:export
-   #:tree
-   #:tree-start
-   #:tree-length
-   #:tree-root
-   #:make-tree
-   #:invalid-tree-measure
-   #:leaf
-   #:leaf-p
-   #:leaf-measure
-   #:leaf-value
-   #:leftmost
-   #:rightmost
-   #:stab
-   #:tree-left
-   #:tree-right
-   #:insert
-   #:mapc-tree
-   #:mapc-tree-values
-   #:do-tree-values
-   #:tree-list))
-
 (defpackage #:state
   (:use :common-lisp :alexandria)
   (:export
