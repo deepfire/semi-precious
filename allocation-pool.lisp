@@ -86,8 +86,8 @@
   "Execute BODY within context established by the most recently entered
 WITH-ALLOCATOR form with NAME. The established context is used to determine
 the result of EVAL-ALLOCATED form evaluations."
-  (multiple-value-bind (decls body) (destructure-binding-form-body body)
-    (let* ((special-vars (apply #'append (mapcar #'rest (remove 'special decls :key #'car :test-not #'eq))))
+  (multiple-value-bind (body decls) (parse-body body)
+    (let* ((special-vars (apply #'append (mapcar #'rest (remove 'special (rest decls) :key #'car :test-not #'eq))))
            (ordinary-vars (set-difference bound-set special-vars)))
       (when-let ((unknown-vars (set-difference special-vars bound-set)))
         (environment-error "~@<Unknown variables were declared special: ~S~:@>~%" unknown-vars))
